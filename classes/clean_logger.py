@@ -4,6 +4,17 @@ from typing import Optional, Dict, Any, Callable, Generator
 from collections import deque
 import weave
 
+class StreamCollector:
+    """
+    A simple class to collect streamed content via callback.
+    """
+    def __init__(self):
+        self.full_response = ""
+        
+    def callback(self, input_text):
+        """Callback function to collect streamed text."""
+        self.full_response += input_text
+
 def stream_json_output(process_or_lines, stream_callback=None, cache_size=15):
     """
     Streams assistant messages from JSON-line output.
@@ -30,7 +41,8 @@ def stream_json_output(process_or_lines, stream_callback=None, cache_size=15):
         if not line:
             continue
 
-        full_response = full_response + line
+        # Keep track of full response for token counting
+        full_response = full_response + "\n" + line
 
         try:
             data = json.loads(line)
@@ -78,11 +90,11 @@ def stream_json_output(process_or_lines, stream_callback=None, cache_size=15):
                     print(msg, flush=True)
                     if stream_callback:
                         stream_callback(msg)
-        else:
-            msg = f"🔧 {data.get('message', '')}"
-            print(msg, flush=True)
-            if stream_callback:
-                stream_callback(msg)
+        # else:
+        #     msg = f"🔧 {data.get('message', '')}"
+        #     print(msg, flush=True)
+        #     if stream_callback:
+        #         stream_callback(msg)
         
         # Track token usage if provided
         usage = data.get("usage", {})

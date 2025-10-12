@@ -2,7 +2,8 @@
 """
 python3 classes/simple_revive_agent_test.py
 """
-
+import sys
+sys.path.append("./")
 from revive_agent import ReviveAgent
 
 
@@ -18,7 +19,7 @@ def test_summarize_project():
         print(f"✓ ReviveAgent initialized with model: {agent.get_model()}")
 
         # Simple test prompt
-        prompt = "Summarize this project"
+        prompt = "Quickly summarize this project"
         print(f"Sending prompt: '{prompt}'")
         print("-" * 60)
 

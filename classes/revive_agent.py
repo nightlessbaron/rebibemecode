@@ -1,9 +1,8 @@
 import subprocess
-import json
-import sys
-from typing import Optional, Dict, Any, Callable, Generator
+from typing import Optional, Dict, Any, Callable
 import weave
-from clean_logger import stream_json_output
+from classes.clean_logger import stream_json_output, StreamCollector
+from termcolor import cprint
 
 class ReviveAgent:
     """
@@ -22,12 +21,16 @@ class ReviveAgent:
         """
         self.model = model
         self._verify_cli()
-        # Per-call stats
-        self.last_tool_call_count = 0
-        self.last_token_count = 0
-        # Cumulative stats across all calls
-        self.total_tool_call_count = 0
-        self.total_token_count = 0
+        self.total_tokens_used = 0
+        self.total_tool_calls_used = 0
+
+    # In destructor, print the total stats
+    def __del__(self):
+        cprint("-"*80, "green")
+        cprint("Agent stats before destruction", "green")
+        cprint(f"\tTotal tokens used: {self.total_tokens_used}", "green")
+        cprint(f"\tTotal tool calls used: {self.total_tool_calls_used}", "green")
+        cprint("-"*80, "green")
     
     def _verify_cli(self) -> None:
         """
@@ -117,8 +120,9 @@ class ReviveAgent:
             full_response = ""
             # Read output line by line
             try:
-                data = stream_json_output(process, stream_callback)                    
-                full_response = data["full_response"]
+                collector = StreamCollector()
+                data = stream_json_output(process, collector.callback)
+                full_response = collector.full_response                 
                 
                 # Wait for the process to complete
                 process.wait(timeout=timeout)
@@ -129,6 +133,8 @@ class ReviveAgent:
                     raise RuntimeError(f"Agent CLI command failed: {stderr}")
                 
                 if summarize_reduce:
+                    self.total_tokens_used += data["tokens"]
+                    self.total_tool_calls_used += data["tool_calls"]
                     self.summarize_reduce(prompt, full_response, "./")
                 
                 return full_response
@@ -218,26 +224,6 @@ class ReviveAgent:
             'tool_calls': self.total_tool_call_count,
             'tokens': self.total_token_count
         }
-    
-    def reset_stats(self) -> None:
-        """
-        Reset all statistics counters (both per-call and cumulative).
-        """
-        self.last_tool_call_count = 0
-        self.last_token_count = 0
-        self.total_tool_call_count = 0
-        self.total_token_count = 0
-    
-    def print_total_stats(self) -> None:
-        """
-        Print a summary of total statistics.
-        """
-        print("\n" + "="*80)
-        print(f"📊 TOTAL STATS FOR THIS SESSION")
-        print("="*80)
-        print(f"Total Tool Calls: {self.total_tool_call_count}")
-        print(f"Total Tokens: ~{self.total_token_count}")
-        print("="*80 + "\n")
 
     def summarize_reduce(self, prompt, response, global_dir):
         """
@@ -251,7 +237,8 @@ class ReviveAgent:
         1. If a file {global_dir}/mistake_log.md exists, read it and understad what mistakes are already logged
         2. Read the file {global_dir}/mistake_log_dump.txt, and try to understand what were the key mistakes that were made in that agentic transaction
         3. Make sure to conslidate all mistakes in the {global_dir}/mistake_log.md file at the end, and only keep a max of 10 mistakes
-           The mistakes should only be focussed on code integration and depencency resolution only, keep only high value mistakes
+           The mistakes should only be focussed on code integration and depencency resolution only, keep only medium-high value mistakes
+           In case something took a long time to fix (>2 tries), make sure to record it as a mistake (so you can shortcut it later)
            Format should be: Mistake: <mistake> | How to fix: <how to fix>
         """
         # Put the mistake lot in {global_dir}/mistake_log_dump.txt

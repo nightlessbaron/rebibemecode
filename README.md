@@ -14,7 +14,7 @@ cursor-agent --version
 ```
 conda activate coderebibe
 BASE_DIR=https://github.com/DLR-RM/stable-baselines3
-OLD_DIR=https://github.com/openai/atari-py
+OLD_DIR=https://github.com/ARISE-Initiative/robomimic
 python main.py\
   --R_base $BASE_DIR\
   --R_old $OLD_DIR\
