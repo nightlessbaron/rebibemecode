@@ -90,7 +90,7 @@ def revive_code_task(job_id, git_repo_base, git_repo_old, workdir):
             )
 
             # Initialize the agent
-            agent = ReviveAgent()
+            agent = ReviveAgent(model='sonnet-4.5')
 
             # Setup the r_base environment
             job_status[job_id]["current_step"] = "Setting up R_base environment"
@@ -413,6 +413,127 @@ def debug_weave(job_id):
     print(debug_info)
     
     return jsonify(debug_info)
+
+
+@app.route("/git-diff/<job_id>")
+def get_git_diff(job_id):
+    """Get git diff for all changes in the working directory."""
+    if job_id not in job_status:
+        return jsonify({"error": "Job not found"}), 404
+    
+    workdir = job_status[job_id].get("work_directory")
+    if not workdir or not os.path.exists(workdir):
+        return jsonify({"error": "Work directory not found"}), 404
+    
+    try:
+        diffs = {}
+        
+        def get_repo_diff(repo_dir, repo_name):
+            """Helper function to get diff from a repository."""
+            if not os.path.exists(repo_dir):
+                return None
+            
+            try:
+                print(f"📝 Checking git diff in {repo_dir}")
+                
+                # Method 1: Try standard git diff
+                result = subprocess.run(
+                    ["git", "diff", "--no-color"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    print(f"✅ Found diff using 'git diff' for {repo_name}: {len(result.stdout)} bytes")
+                    return result.stdout
+                
+                # Method 2: Try git diff HEAD (shows all uncommitted changes)
+                result = subprocess.run(
+                    ["git", "diff", "HEAD", "--no-color"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    print(f"✅ Found diff using 'git diff HEAD' for {repo_name}: {len(result.stdout)} bytes")
+                    return result.stdout
+                
+                # Method 3: Check git status to see if there are any changes
+                status_result = subprocess.run(
+                    ["git", "status", "--short"],
+                    cwd=repo_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if status_result.returncode == 0 and status_result.stdout.strip():
+                    print(f"📋 Git status shows changes for {repo_name}:")
+                    print(status_result.stdout)
+                    
+                    # Try to get diff including untracked files
+                    result = subprocess.run(
+                        ["git", "diff", "--no-index", "--no-color", "/dev/null", "."],
+                        cwd=repo_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+                    
+                    if result.returncode in [0, 1] and result.stdout.strip():
+                        print(f"✅ Found diff with untracked files for {repo_name}")
+                        return result.stdout
+                
+                print(f"⚠️ No diff found for {repo_name}")
+                return None
+                
+            except subprocess.TimeoutExpired:
+                print(f"⏱️ Timeout getting diff for {repo_name}")
+                return None
+            except Exception as e:
+                print(f"❌ Error getting {repo_name} diff: {e}")
+                import traceback
+                traceback.print_exc()
+                return None
+        
+        # Get diffs for both repositories
+        r_base_dir = os.path.join(workdir, "r_base")
+        r_base_diff = get_repo_diff(r_base_dir, "r_base")
+        if r_base_diff:
+            diffs["r_base"] = r_base_diff
+        
+        r_old_dir = os.path.join(workdir, "r_old")
+        r_old_diff = get_repo_diff(r_old_dir, "r_old")
+        if r_old_diff:
+            diffs["r_old"] = r_old_diff
+        
+        print(f"📊 Total diffs found: {len(diffs)}")
+        
+        if not diffs:
+            return jsonify({
+                "message": "No git changes detected yet",
+                "diffs": {},
+                "debug": {
+                    "workdir": workdir,
+                    "r_base_exists": os.path.exists(r_base_dir),
+                    "r_old_exists": os.path.exists(r_old_dir)
+                }
+            })
+        
+        return jsonify({
+            "diffs": diffs,
+            "workdir": workdir
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting git diff: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/results/<job_id>")
