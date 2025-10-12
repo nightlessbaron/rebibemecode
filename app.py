@@ -21,6 +21,7 @@ from termcolor import cprint
 import weave
 from classes.revive_agent import ReviveAgent
 import classes.utils as utils
+import subprocess
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # For session management
@@ -90,7 +91,7 @@ def revive_code_task(job_id, git_repo_base, git_repo_old, workdir):
             )
 
             # Initialize the agent
-            agent = ReviveAgent(model='sonnet-4.5')
+            agent = ReviveAgent(model="sonnet-4.5")
 
             # Setup the r_base environment
             job_status[job_id]["current_step"] = "Setting up R_base environment"

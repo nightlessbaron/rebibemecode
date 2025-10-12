@@ -90,7 +90,7 @@ class ReviveAgent:
         """
         if not prompt or not prompt.strip():
             raise ValueError("Prompt cannot be empty or None")
-        
+
         if summarize_reduce:
             print("--------------------------------")
             print("Running with model: ", self.model, "and prompt: ")
@@ -146,7 +146,7 @@ class ReviveAgent:
                     self.total_tokens_used += data["tokens"]
                     self.total_tool_calls_used += data["tool_calls"]
                     self.usage_stats_saved.append(f"📊 Usage Stats: {data['tool_calls']} tool calls | ~{data['tokens']} tokens")
-                    self.summarize_reduce(prompt, full_response, "./")
+                    # self.summarize_reduce(prompt, full_response, "./")
                 
                 return full_response
                 

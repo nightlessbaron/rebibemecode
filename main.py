@@ -16,13 +16,21 @@ import classes.utils as utils
 
 GLOBAL_CONTEXT = """
 Global context:
-You are an integration agent, whose job is to make older repositories compatible latest ones. You will be given 2 repositories, R_base and R_old, and you need to integrate the R_old code into R_base. These are the high-level objectives you should operate on
+You are an integration agent, whose job is to make older repositories compatible latest ones. 
+You will be given 2 repositories, R_base and R_old, and you need to integrate the R_old code into R_base. These are the high-level objectives you should operate on
 You are not allowed to make a lot of changes to the code and environment in R_base. Only make absolutely necessary changes without which R_old can never be integrated with R_base (for example, if E_base doesn't have scipy, and R_old uses it, you are allowed to install scipy in R_base)
 You are allowed to modify code in R_old to make it compatible with R_base, as long as it doesn't change any core features/functionality of R_old.
 The repository might have a mistake log at ./mistake_log.md. If it exists, read it and keep it in mind.
-Github repos R_base and R_old will be cloned for you, don't clone them again (if you dont find them you made a path error).
-Make sure to resolve all dependency issues, especially related to version mismatches (by upgrading package and code accordingly)
-I will provide you with specifics in the prompt below.
+
+General heuristics:
+- Github repos R_base and R_old will be cloned for you, don't clone them again (if you dont find them you made a path error).
+- Make sure to resolve all dependency issues, especially related to version mismatches (by upgrading package and code accordingly)
+- Keep things fluid and fast, dont try to generate very complicated solutions
+- Try not to create documents you are not asked to create, if you do please try to cleanup later. If you make a lot of changes its ok to create a summary of changes if required.
+
+Test generation guidelines:
+- For RL environment packages, one of the test cases generated should be an mp4 file, with the same name and path as the test_file by an mp4 format. Use headless rendering to generate frames and save video as an mp4 file.
+- For packages that cannot have a visual test case, ensure decent coverage in the test case generation.
 
 Specific work to do:
 """
@@ -115,7 +123,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--R_old",
         type=str,
-        default="https://github.com/igilitschenski/multi_car_racing/",
+        default="https://github.com/axelbr/racecar_gym",
         help="Old repository URL (default: %(default)s)",
     )
 
