@@ -12,7 +12,7 @@ class ReviveAgent:
     and receive responses as strings.
     """
     @weave.op()
-    def __init__(self, model: str):
+    def __init__(self, model: str = "auto"):
         """
         Initialize the ReviveAgent with the specified model.
 
@@ -124,7 +124,14 @@ class ReviveAgent:
             # Read output line by line
             try:
                 collector = StreamCollector()
-                data = stream_json_output(process, collector.callback)
+                
+                # Create a combined callback that calls both the collector and the stream_callback
+                def combined_callback(text):
+                    collector.callback(text)
+                    if stream_callback:
+                        stream_callback(text)
+                
+                data = stream_json_output(process, combined_callback)
                 full_response = collector.full_response                 
                 
                 # Wait for the process to complete
@@ -225,8 +232,8 @@ class ReviveAgent:
             dict: Dictionary containing total 'tool_calls' and 'tokens' counts
         """
         return {
-            'tool_calls': self.total_tool_call_count,
-            'tokens': self.total_token_count
+            'tool_calls': self.total_tool_calls_used,
+            'tokens': self.total_tokens_used
         }
 
     def summarize_reduce(self, prompt, response, global_dir):

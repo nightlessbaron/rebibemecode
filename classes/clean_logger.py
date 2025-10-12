@@ -86,7 +86,7 @@ def stream_json_output(process_or_lines, stream_callback=None, cache_size=15):
                 # Extract tool information
                 tool_info = format_tool_call(tool_call)
                 if tool_info:
-                    msg = f"🔧 {tool_info}"
+                    msg = f"🔧 {tool_info}\n"
                     print(msg, flush=True)
                     if stream_callback:
                         stream_callback(msg)

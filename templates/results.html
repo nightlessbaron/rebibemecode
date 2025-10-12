@@ -274,6 +274,104 @@
         .stream-output::-webkit-scrollbar-thumb:hover {
             background: #666;
         }
+
+        /* Trace Visualization Styles */
+        .trace-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e1e4e8;
+        }
+
+        .trace-card-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .trace-card-value {
+            font-size: 18px;
+            color: #333;
+            font-weight: 700;
+        }
+
+        .trace-tree-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e1e4e8;
+        }
+
+        .call-tree {
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        .call-node {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f6f8fa;
+            border-left: 3px solid #667eea;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .call-node:hover {
+            background: #e1e4e8;
+            transform: translateX(5px);
+        }
+
+        .call-node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .call-op-name {
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .call-duration {
+            font-size: 11px;
+            color: #666;
+            background: #fff;
+            padding: 3px 8px;
+            border-radius: 12px;
+        }
+
+        .call-status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .call-status.completed {
+            background: #55efc4;
+            color: #00b894;
+        }
+
+        .call-status.running {
+            background: #74b9ff;
+            color: #0984e3;
+        }
+
+        .call-status.failed {
+            background: #ff7675;
+            color: #d63031;
+        }
+
+        .call-children {
+            margin-left: 20px;
+            border-left: 2px solid #e1e4e8;
+            padding-left: 15px;
+        }
     </style>
 </head>
 <body>
@@ -304,6 +402,60 @@
         <div class="stream-output" id="streamOutput">
             <h3>📟 Live Agent Output</h3>
             <div class="stream-content" id="streamContent">Waiting for agent output...</div>
+        </div>
+
+        <div class="weave-logs-section" style="margin-bottom: 25px;">
+            <h3 style="color: #333; font-size: 16px; margin-bottom: 15px;">📊 Weave Trace Visualization</h3>
+            
+            <!-- Trace Overview Cards -->
+            <div id="traceOverview" style="display: none; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="trace-card">
+                        <div class="trace-card-label">Status</div>
+                        <div class="trace-card-value" id="traceStatus">-</div>
+                    </div>
+                    <div class="trace-card">
+                        <div class="trace-card-label">Duration</div>
+                        <div class="trace-card-value" id="traceDuration">-</div>
+                    </div>
+                    <div class="trace-card">
+                        <div class="trace-card-label">Total Calls</div>
+                        <div class="trace-card-value" id="totalCalls">-</div>
+                    </div>
+                    <div class="trace-card">
+                        <div class="trace-card-label">Operation</div>
+                        <div class="trace-card-value" id="traceOp" style="font-size: 12px;">-</div>
+                    </div>
+                </div>
+                
+                <!-- Call Tree Visualization -->
+                <div class="trace-tree-container">
+                    <h4 style="color: #333; font-size: 14px; margin-bottom: 10px;">🌳 Execution Call Tree</h4>
+                    <div id="callTree" class="call-tree"></div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <a href="https://wandb.ai/mbzuai-llm/rebibemecode-web-app/weave" 
+                   target="_blank" 
+                   class="btn btn-primary" 
+                   style="display: inline-block; text-decoration: none; font-size: 14px; padding: 10px 20px;">
+                    🔗 View Full Weave Dashboard
+                </a>
+                <a id="jobTraceLink" 
+                   href="#" 
+                   target="_blank" 
+                   class="btn btn-secondary" 
+                   style="display: none; text-decoration: none; font-size: 14px; padding: 10px 20px;">
+                    🔍 View This Job's Trace
+                </a>
+                <button id="refreshTraceBtn" 
+                        onclick="refreshTraceData()" 
+                        class="btn btn-secondary" 
+                        style="display: none; font-size: 14px; padding: 10px 20px;">
+                    🔄 Refresh Trace Data
+                </button>
+            </div>
         </div>
 
         <div class="repo-info">
@@ -388,6 +540,16 @@
                 errorText.textContent = data.error;
             } else {
                 errorDetails.style.display = 'none';
+            }
+
+            // Update Weave trace link if available
+            if (data.weave_trace_url) {
+                const jobTraceLink = document.getElementById('jobTraceLink');
+                const weaveIframe = document.getElementById('weaveIframe');
+                jobTraceLink.href = data.weave_trace_url;
+                jobTraceLink.style.display = 'inline-block';
+                // Update iframe to show job-specific trace
+                weaveIframe.src = data.weave_trace_url + '?embed=true';
             }
 
             // Update stats if available
@@ -477,13 +639,138 @@
             };
         }
 
+        async function refreshTraceData() {
+            try {
+                console.log(`📊 Fetching trace data for job: ${jobId}`);
+                const response = await fetch(`/weave-data/${jobId}`);
+                const data = await response.json();
+                
+                console.log('📊 Trace data response:', data);
+                
+                if (response.ok && data.call_id) {
+                    console.log('✅ Successfully fetched trace data');
+                    
+                    // Show the trace overview section
+                    document.getElementById('traceOverview').style.display = 'block';
+                    document.getElementById('refreshTraceBtn').style.display = 'inline-block';
+                    
+                    // Update trace overview cards
+                    document.getElementById('traceStatus').textContent = data.status || 'running';
+                    document.getElementById('traceStatus').className = `trace-card-value call-status ${data.status}`;
+                    
+                    if (data.duration_ms) {
+                        const seconds = (data.duration_ms / 1000).toFixed(2);
+                        document.getElementById('traceDuration').textContent = `${seconds}s`;
+                    } else {
+                        document.getElementById('traceDuration').textContent = 'In progress...';
+                    }
+                    
+                    document.getElementById('totalCalls').textContent = (data.total_children || 0) + 1;
+                    document.getElementById('traceOp').textContent = data.op_name || '-';
+                    
+                    // Build call tree
+                    const callTree = document.getElementById('callTree');
+                    callTree.innerHTML = buildCallTree(data);
+                    
+                    console.log(`✅ Updated trace visualization with ${data.children?.length || 0} children`);
+                } else {
+                    console.log('⚠️ Trace data not available yet:', data.error || 'No data');
+                }
+            } catch (error) {
+                console.error('❌ Error fetching trace data:', error);
+            }
+        }
+
+        function buildCallTree(callData) {
+            let html = `
+                <div class="call-node">
+                    <div class="call-node-header">
+                        <div>
+                            <span class="call-op-name">📦 ${callData.op_name}</span>
+                            <span class="call-status ${callData.status}">${callData.status}</span>
+                        </div>
+                        <div class="call-duration">
+                            ${callData.duration_ms ? `${(callData.duration_ms / 1000).toFixed(2)}s` : 'running...'}
+                        </div>
+                    </div>
+            `;
+            
+            // Add attributes if they exist
+            if (callData.attributes && Object.keys(callData.attributes).length > 0) {
+                html += '<div style="font-size: 11px; color: #666; margin-top: 5px;">';
+                const importantAttrs = ['job_id', 'step', 'r_base_url', 'r_old_url'];
+                for (const key of importantAttrs) {
+                    if (callData.attributes[key]) {
+                        const value = callData.attributes[key];
+                        const displayValue = typeof value === 'string' && value.length > 50 
+                            ? value.substring(0, 50) + '...' 
+                            : value;
+                        html += `<div><strong>${key}:</strong> ${displayValue}</div>`;
+                    }
+                }
+                html += '</div>';
+            }
+            
+            // Add children recursively
+            if (callData.children && callData.children.length > 0) {
+                html += '<div class="call-children">';
+                for (const child of callData.children) {
+                    html += `
+                        <div class="call-node">
+                            <div class="call-node-header">
+                                <div>
+                                    <span class="call-op-name">⚡ ${child.op_name}</span>
+                                    <span class="call-status ${child.status}">${child.status}</span>
+                                </div>
+                                <div class="call-duration">
+                                    ${child.duration_ms ? `${(child.duration_ms / 1000).toFixed(2)}s` : 'running...'}
+                                </div>
+                            </div>
+                    `;
+                    
+                    // Add summary if it exists
+                    if (child.summary && Object.keys(child.summary).length > 0) {
+                        html += '<div style="font-size: 11px; color: #666; margin-top: 5px;">';
+                        for (const [key, value] of Object.entries(child.summary)) {
+                            if (key !== 'weave') {
+                                html += `<div><strong>${key}:</strong> ${value}</div>`;
+                            }
+                        }
+                        html += '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
         // Auto-refresh every 3 seconds
         autoRefreshInterval = setInterval(refreshStatus, 3000);
+        
+        // Refresh trace data every 10 seconds if job is running
+        let traceRefreshInterval = setInterval(() => {
+            const status = jobStatus[jobId]?.status;
+            if (status === 'running' || status === 'completed') {
+                refreshTraceData();
+            }
+            if (status === 'completed' || status === 'failed') {
+                clearInterval(traceRefreshInterval);
+            }
+        }, 10000);
 
         // Initial load
         window.addEventListener('load', () => {
             refreshStatus();
             startStreaming();
+            
+            // Try to fetch trace data after a short delay to let the job start
+            setTimeout(() => {
+                refreshTraceData();
+            }, 5000);
         });
     </script>
 </body>

@@ -49,6 +49,9 @@ Specific work to do:
 def revive_code_task(job_id, git_repo_base, git_repo_old, workdir):
     """Background task to run the code revival process."""
     try:
+        # Don't set the URL here - let the wrapper handle it
+        # job_status[job_id]["weave_trace_url"] = "https://wandb.ai/mbzuai-llm/rebibemecode-web-app/weave"
+        
         # Track job metadata in Weave
         with weave.attributes(
             {
@@ -198,6 +201,34 @@ def index():
     return render_template("index.html")
 
 
+def run_revive_task_with_weave_tracking(job_id, git_repo_base, git_repo_old, workdir):
+    """Wrapper to run the task and capture the Weave call ID."""
+    try:
+        print(f"🚀 Starting Weave-tracked task for job {job_id[:8]}")
+        
+        # Use .call() to get the call object
+        result, call = revive_code_task.call(job_id, git_repo_base, git_repo_old, workdir)
+        
+        print(f"✅ Task completed. Call object type: {type(call)}")
+        print(f"✅ Call ID: {call.id if call else 'None'}")
+        
+        # Update the job status with the Weave trace URL
+        if call and hasattr(call, 'id') and call.id:
+            weave_url = f"https://wandb.ai/mbzuai-llm/rebibemecode-web-app/weave/calls/{call.id}"
+            job_status[job_id]["weave_trace_url"] = weave_url
+            print(f"🔍 Weave trace URL for job {job_id[:8]}: {weave_url}")
+        else:
+            print(f"⚠️ No call object or call ID available for job {job_id[:8]}")
+        
+        return result
+    except Exception as e:
+        print(f"❌ Error in Weave tracking wrapper: {e}")
+        import traceback
+        traceback.print_exc()
+        # Still run the task even if tracking fails
+        return revive_code_task(job_id, git_repo_base, git_repo_old, workdir)
+
+
 @app.route("/submit", methods=["POST"])
 def submit_job():
     """Handle form submission and start the background task."""
@@ -225,9 +256,9 @@ def submit_job():
         "started_at": datetime.now().isoformat(),
     }
 
-    # Start background thread
+    # Start background thread with Weave tracking wrapper
     thread = threading.Thread(
-        target=revive_code_task, args=(job_id, r_base, r_old, workdir)
+        target=run_revive_task_with_weave_tracking, args=(job_id, r_base, r_old, workdir)
     )
     thread.daemon = True
     thread.start()
@@ -242,6 +273,136 @@ def get_status(job_id):
         return jsonify({"error": "Job not found"}), 404
 
     return jsonify(job_status[job_id])
+
+
+@app.route("/weave-data/<job_id>")
+def get_weave_data(job_id):
+    """Fetch Weave trace data for a specific job."""
+    if job_id not in job_status:
+        return jsonify({"error": "Job not found"}), 404
+    
+    weave_trace_url = job_status[job_id].get("weave_trace_url")
+    if not weave_trace_url:
+        return jsonify({"error": "Weave trace not available yet"}), 404
+    
+    try:
+        # Extract call ID from the URL
+        if "/calls/" in weave_trace_url:
+            call_id = weave_trace_url.split("/calls/")[-1].split("?")[0]
+        else:
+            # URL doesn't contain call ID yet
+            print(f"⚠️ Weave URL doesn't contain call ID: {weave_trace_url}")
+            return jsonify({"error": "Weave call ID not available yet"}), 404
+        
+        print(f"🔍 Fetching Weave data for call_id: {call_id}")
+        
+        # Initialize Weave client (reuse existing client if already initialized)
+        try:
+            client = weave.init("rebibemecode-web-app")
+        except Exception as e:
+            print(f"⚠️ Weave already initialized: {e}")
+            # Get existing client
+            import weave.trace.weave_client as weave_client_module
+            client = weave_client_module.get_weave_client()
+        
+        if not client:
+            return jsonify({"error": "Failed to initialize Weave client"}), 500
+        
+        # Get the call object
+        try:
+            call = client.get_call(call_id)
+        except Exception as e:
+            print(f"❌ Error getting call: {e}")
+            return jsonify({"error": f"Failed to get call: {str(e)}"}), 500
+        
+        if not call:
+            return jsonify({"error": "Call not found"}), 404
+        
+        print(f"✅ Found call: {call.op_name}")
+        
+        # Build a comprehensive trace visualization data structure
+        trace_data = {
+            "call_id": str(call.id),
+            "op_name": str(call.op_name) if call.op_name else "Unknown",
+            "status": "completed" if call.ended_at else "running",
+            "started_at": call.started_at.isoformat() if call.started_at else None,
+            "ended_at": call.ended_at.isoformat() if call.ended_at else None,
+            "duration_ms": int((call.ended_at - call.started_at).total_seconds() * 1000) if call.ended_at and call.started_at else None,
+            "attributes": dict(call.attributes) if call.attributes else {},
+            "summary": dict(call.summary) if call.summary else {},
+            "children": []
+        }
+        
+        # Fetch child calls
+        try:
+            print(f"🔍 Fetching child calls for trace_id: {call.trace_id}")
+            
+            # Get all calls with this trace_id to build the tree
+            all_calls_iter = client.calls(filter={"trace_id": call.trace_id})
+            all_calls = list(all_calls_iter)
+            
+            print(f"✅ Found {len(all_calls)} total calls")
+            
+            # Build call tree
+            children_map = {}
+            
+            for c in all_calls:
+                if c.parent_id and c.parent_id == call.id:
+                    if c.parent_id not in children_map:
+                        children_map[c.parent_id] = []
+                    
+                    child_data = {
+                        "call_id": str(c.id),
+                        "op_name": str(c.op_name) if c.op_name else "Unknown",
+                        "started_at": c.started_at.isoformat() if c.started_at else None,
+                        "ended_at": c.ended_at.isoformat() if c.ended_at else None,
+                        "duration_ms": int((c.ended_at - c.started_at).total_seconds() * 1000) if c.ended_at and c.started_at else None,
+                        "status": "completed" if c.ended_at else "running",
+                        "summary": dict(c.summary) if c.summary else {}
+                    }
+                    children_map[c.parent_id].append(child_data)
+            
+            trace_data["children"] = children_map.get(call.id, [])
+            trace_data["total_children"] = len(all_calls) - 1  # Exclude root call
+            
+            print(f"✅ Built tree with {len(trace_data['children'])} direct children")
+            
+        except Exception as e:
+            print(f"⚠️ Error fetching child calls: {e}")
+            import traceback
+            traceback.print_exc()
+            trace_data["total_children"] = 0
+        
+        return jsonify(trace_data)
+        
+    except Exception as e:
+        print(f"❌ Error fetching Weave data: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/debug-weave/<job_id>")
+def debug_weave(job_id):
+    """Debug endpoint to check Weave trace URL and job status."""
+    if job_id not in job_status:
+        return jsonify({"error": "Job not found"}), 404
+    
+    job_data = job_status[job_id]
+    
+    debug_info = {
+        "job_id": job_id,
+        "has_weave_url": "weave_trace_url" in job_data,
+        "weave_url": job_data.get("weave_trace_url", "Not set"),
+        "job_status": job_data.get("status", "Unknown"),
+        "current_step": job_data.get("current_step", "Unknown"),
+        "all_keys": list(job_data.keys())
+    }
+    
+    print("🐛 Debug info for job", job_id[:8], ":")
+    print(debug_info)
+    
+    return jsonify(debug_info)
 
 
 @app.route("/results/<job_id>")
