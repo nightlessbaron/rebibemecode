@@ -228,7 +228,7 @@ def verify_complete_integration(agent, r_base, r_old, workdir, GLOBAL_CONTEXT):
        else write 
              'r_old: env setup and unit tests failed' 
        in {workdir}/final_summary.txt
-    3. Run and verify test_env.sh works correctly, if yes append 
+    3. Run and verify test_base.sh works correctly, if yes append 
              'r_base: env setup and unit tests successful' 
        else write 
              'r_base: env setup and unit tests failed' 
