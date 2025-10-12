@@ -236,35 +236,7 @@ class ReviveAgent:
             'tokens': self.total_tokens_used
         }
 
-    def summarize_reduce(self, prompt, response, global_dir):
-        """
-        Summarize the mistakes made by the agent and reduce them to a log of mistakes.
-        """
-        global_prompt = f"""
-        You are a mistake summarizer. 
-        You need to summarize mistakes related code integration and depencency resolution only, else skip it.
-        You will be given a prompt and a response, which you need to use and identify mistakes the agentic transaction made.
-
-        1. If a file {global_dir}/mistake_log.md exists, read it and understad what mistakes are already logged
-        2. Read the file {global_dir}/mistake_log_dump.txt, and try to understand what were the key mistakes that were made in that agentic transaction
-        3. In {global_dir}/mistake_log.md keep a log of at max 10 mistakes and 10 possible optimizations
-           If you have more data, make sure to consolidate and keep top 10 in each category
-           - Mistakes:
-                - The mistakes should only be focussed on code integration and depencency resolution only, keep only medium-high value mistakes
-                - Try not to keep this log empty (0 mistakes), as we really want to self improve over iterations
-           
-           - Possible Optimizations:
-                - At each invocation, atleast try to add 1 optimization / possible faster way of doing a subtask to the file
-                - In case something took a long time to fix (>=2 tries), make sure to record with possible optimization
-           
-        """
-        # Put the mistake lot in {global_dir}/mistake_log_dump.txt
-        with open(f"{global_dir}/mistake_log_dump.txt", "w") as f:
-            f.write(f"Prompt: {prompt}\n")
-            f.write(f"Response: {response}\n")
-
-        # Run the prompt
-        self.run_prompt(global_prompt, summarize_reduce=False)
+    # Removed summarize_reduce method to speed up execution
 
 
 # Example usage and testing

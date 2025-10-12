@@ -162,7 +162,6 @@ def summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT, stream_callback=No
 @weave.op()
 def verify_base_repo_setup(agent, workdir, GLOBAL_CONTEXT):
     to_verify_files = [
-        f"{workdir}/summarize_r_base.md",
         f"{workdir}/setup_r_base.sh",
         f"{workdir}/test_base.sh",
     ]
@@ -183,7 +182,7 @@ def verify_if_env_is_setup_correctly(
              'r_base: env setup and unit tests failed'
        in {workdir}/agent_summary.txt
     """
-    result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback, summarize_reduce=False)
+    result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback)
 
     # Read the file {workdir}/agent_summary.txt
     with open(f"{workdir}/agent_summary.txt", "r") as f:
@@ -218,8 +217,7 @@ def setup_r_old_environment(
     agent, r_old, workdir, GLOBAL_CONTEXT, stream_callback=None
 ):
     """
-    We will clone the repo and read code and summarize it.
-    We will
+    We will clone the repo and read code.
     """
     prompt = f"""
     1. Clone the repo from {r_old}, and make sure you have the code at {workdir}/r_old
@@ -231,9 +229,7 @@ def setup_r_old_environment(
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
 
-    # Assert if the the files have been created
-    if not os.path.exists(f"{workdir}/summarize_r_old.md"):
-        raise RuntimeError(f"Summarize_r_old.md not created")
+    # Assert if the test file has been created
     if not os.path.exists(f"{workdir}/test_old.sh"):
         raise RuntimeError(f"Test_old.sh not created")
 
