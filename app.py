@@ -3,6 +3,16 @@
 Flask web application for the code revive backend.
 """
 
+# Print ASCII logo in green
+print("\033[92m")  # Green color
+print("██████  ███████ ██    ██ ██ ██    ██ ███████ ██████  ")
+print("██   ██ ██      ██    ██ ██ ██    ██ ██      ██   ██ ")
+print("██████  █████   ██    ██ ██ ██    ██ █████   ██████  ")
+print("██   ██ ██       ██  ██  ██  ██  ██  ██      ██   ██ ")
+print("██   ██ ███████   ████   ██   ████   ███████ ██   ██ ")
+print("\033[0m")  # Reset color
+print()
+
 from flask import (
     Flask,
     render_template,

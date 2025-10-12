@@ -1,5 +1,13 @@
 # 🔄 Weave Hack: ReviveAgent
 
+```
+██████  ███████ ██    ██ ██ ██    ██ ███████ ██████  
+██   ██ ██      ██    ██ ██ ██    ██ ██      ██   ██ 
+██████  █████   ██    ██ ██ ██    ██ █████   ██████  
+██   ██ ██       ██  ██  ██  ██  ██  ██      ██   ██ 
+██   ██ ███████   ████   ██   ████   ███████ ██   ██ 
+```
+
 **Automatically integrate older repositories with modern codebases using AI-powered analysis and migration.**
 
 Rebibemecode is an intelligent Flask web application that leverages Claude Sonnet 4.5 to automatically analyze, adapt, and integrate legacy code repositories with their modern counterparts. Say goodbye to manual dependency resolution and compatibility issues!

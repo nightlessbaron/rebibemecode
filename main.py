@@ -3,6 +3,16 @@
 Main script with argument parsing for R_base, R_old URLs and work directory.
 """
 
+# Print ASCII logo in green
+print("\033[92m")  # Green color
+print("██████  ███████ ██    ██ ██ ██    ██ ███████ ██████  ")
+print("██   ██ ██      ██    ██ ██ ██    ██ ██      ██   ██ ")
+print("██████  █████   ██    ██ ██ ██    ██ █████   ██████  ")
+print("██   ██ ██       ██  ██  ██  ██  ██  ██      ██   ██ ")
+print("██   ██ ███████   ████   ██   ████   ███████ ██   ██ ")
+print("\033[0m")  # Reset color
+print()
+
 import argparse
 import os
 import subprocess
