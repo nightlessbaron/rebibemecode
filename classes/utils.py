@@ -225,7 +225,9 @@ def setup_r_old_environment(
     1. Clone the repo from {r_old}, and make sure you have the code at {workdir}/r_old
     2. Read code and dependencies from {workdir}/r_old and understand at a high level what it is
        Summarize it in {workdir}/summarize_r_old.md
-    3. Write a single file {workdir}/test_old.sh which tests if r_old is working properly.
+    3. Write a single file {workdir}/test_old.sh which tests if r_old is working properly. 
+       Just ensure decent functionality, no need to run it successfully. 
+       If you absolutely have to run it, make sure to use env_r_base.
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
 

@@ -11,8 +11,19 @@ cursor-agent --version
 
 
 # Running the code
+1. Delete coderebibe and env_r_base if they exist
+2. Make the coderebibe environment
+3. Activate and run the code
 ```
+conda deactivate
+conda remove -n coderebibe --all -y
+conda remove -n env_r_base --all -y
+
+conda create -n coderebibe python=3.11 -y
 conda activate coderebibe
+pip install -r requirements.txt
+curl https://cursor.com/install -fsS | bash
+
 BASE_DIR=https://github.com/DLR-RM/stable-baselines3
 OLD_DIR=https://github.com/ARISE-Initiative/robomimic
 python main.py\
