@@ -19,20 +19,21 @@ Global context:
 You are an integration agent, whose job is to make older repositories compatible latest ones. You will be given 2 repositories, R_base and R_old, and you need to integrate the R_old code into R_base. These are the high-level objectives you should operate on
 You are not allowed to make a lot of changes to the code and environment in R_base. Only make absolutely necessary changes without which R_old can never be integrated with R_base (for example, if E_base doesn't have scipy, and R_old uses it, you are allowed to install scipy in R_base)
 You are allowed to modify code in R_old to make it compatible with R_base, as long as it doesn't change any core features/functionality of R_old.
-I will provide you with specifics in the next prompt
+The repository might have a mistake log at ./mistake_log.md. If it exists, read it and keep it in mind.
+I will provide you with specifics in the prompt below.
 
 Specific work to do:
 """
 
 
 @weave.op()
-def revive_code(git_repo_base, git_repo_old, workdir):
+def revive_code(git_repo_base, git_repo_old, workdir, model):
     global GLOBAL_CONTEXT
-    GLOBAL_CONTEXT = GLOBAL_CONTEXT + f"R_base: {git_repo_base}\nR_old: {git_repo_old}"
-
+    GLOBAL_CONTEXT = GLOBAL_CONTEXT + f"R_base: {git_repo_base}\nR_old: {git_repo_old}\n"
     """Revive code from the old repository to the new repository."""
     cprint("--------------------------------", "green")
     cprint("Revive code with the following parameters:", "green")
+    cprint(f"Model: {model}", "green")
     cprint(f"git_repo_base: {git_repo_base}", "green")
     cprint(f"R_old: {git_repo_old}", "green")
     cprint(f"Work directory: {workdir}", "green")
@@ -45,7 +46,7 @@ def revive_code(git_repo_base, git_repo_old, workdir):
         clone_repos(git_repo_base, git_repo_old, workdir)
 
     # Initialize the agent
-    agent = ReviveAgent()
+    agent = ReviveAgent(model)
 
     # Setup the r_base environment
     with weave.attributes({"step": "setup_r_base_environment", "workdir": workdir}):
@@ -130,6 +131,13 @@ if __name__ == "__main__":
         help="Weave project name for tracking (default: rebibemecode-integration)",
     )
 
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="auto",
+        help="Model to use for the CLI agent (default: auto)"
+    )
+    
     args = parser.parse_args()
 
     # Initialize Weave tracking
@@ -154,5 +162,5 @@ if __name__ == "__main__":
             "work_directory": args.workdir,
         }
     ):
-        result = revive_code(args.R_base, args.R_old, args.workdir)
+        result = revive_code(args.R_base, args.R_old, args.workdir, args.model)
         print(f"\n✅ Final result: {result}")

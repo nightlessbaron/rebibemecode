@@ -3,27 +3,25 @@ import json
 import sys
 from typing import Optional, Dict, Any, Callable, Generator
 import weave
-
+from clean_logger import stream_json_output
 
 class ReviveAgent:
     """
-    A Python class that interfaces with the Cursor CLI agent using Claude 4 Sonnet.
+    A Python class that interfaces with the CLI agent using Claude 4 Sonnet.
 
-    This class allows you to programmatically send prompts to the Cursor CLI agent
+    This class allows you to programmatically send prompts to the CLI agent
     and receive responses as strings.
     """
-
     @weave.op()
-    def __init__(self, model: str = "auto"):
+    def __init__(self, model: str):
         """
         Initialize the ReviveAgent with the specified model.
 
         Args:
-            model (str): The model to use for the Cursor CLI agent. 
-                        Defaults to 'sonnet-4.5'.
+            model (str): The model to use for the CLI agent. 
         """
         self.model = model
-        self._verify_cursor_cli()
+        self._verify_cli()
         # Per-call stats
         self.last_tool_call_count = 0
         self.last_token_count = 0
@@ -31,12 +29,12 @@ class ReviveAgent:
         self.total_tool_call_count = 0
         self.total_token_count = 0
     
-    def _verify_cursor_cli(self) -> None:
+    def _verify_cli(self) -> None:
         """
-        Verify that the Cursor CLI is installed and accessible.
+        Verify that the CLI is installed and accessible.
 
         Raises:
-            RuntimeError: If the Cursor CLI is not installed or not accessible.
+            RuntimeError: If the CLI is not installed or not accessible.
         """
         try:
             result = subprocess.run(
@@ -56,69 +54,12 @@ class ReviveAgent:
                 ) from e
 
     @weave.op()
-    def _format_tool_call(self, tool_call: Dict[str, Any]) -> Optional[str]:
-        """
-        Format a tool call into a human-readable string.
-
-        Args:
-            tool_call: The tool call dictionary from the JSON stream
-
-        Returns:
-            Formatted string describing the tool call, or None if not relevant
-        """
-        # Check for different tool types
-        if "readToolCall" in tool_call:
-            path = tool_call["readToolCall"].get("args", {}).get("path", "")
-            with weave.attributes({"tool_type": "read", "path": path}):
-                return f"Reading file: {path}"
-
-        elif "editToolCall" in tool_call:
-            path = tool_call["editToolCall"].get("args", {}).get("path", "")
-            with weave.attributes({"tool_type": "edit", "path": path}):
-                return f"Editing file: {path}"
-
-        elif "writeToolCall" in tool_call:
-            path = tool_call["writeToolCall"].get("args", {}).get("path", "")
-            with weave.attributes({"tool_type": "write", "path": path}):
-                return f"Writing file: {path}"
-
-        elif "shellToolCall" in tool_call:
-            cmd = tool_call["shellToolCall"].get("args", {}).get("command", "")
-            # Truncate long commands
-            cmd_display = cmd
-            if len(cmd) > 80:
-                cmd_display = cmd[:77] + "..."
-            with weave.attributes({"tool_type": "shell", "command": cmd}):
-                return f"Running command: {cmd_display}"
-
-        elif "lsToolCall" in tool_call:
-            path = tool_call["lsToolCall"].get("args", {}).get("path", "")
-            with weave.attributes({"tool_type": "ls", "path": path}):
-                return f"Listing directory: {path}"
-
-        elif "grepToolCall" in tool_call:
-            pattern = tool_call["grepToolCall"].get("args", {}).get("pattern", "")
-            with weave.attributes({"tool_type": "grep", "pattern": pattern}):
-                return f"Searching for: {pattern}"
-
-        elif "codebaseSearchToolCall" in tool_call:
-            query = tool_call["codebaseSearchToolCall"].get("args", {}).get("query", "")
-            query_display = query
-            if len(query) > 60:
-                query_display = query[:57] + "..."
-            with weave.attributes({"tool_type": "codebase_search", "query": query}):
-                return f"Searching codebase: {query_display}"
-
-        # Return None for other tool types we don't want to display
-        with weave.attributes({"tool_type": "unknown", "tool_call": str(tool_call)}):
-            return None
-
-    @weave.op()
     def run_prompt(
         self,
         prompt: str,
         timeout: int = 600,
         stream_callback: Optional[Callable[[str], None]] = None,
+        summarize_reduce: bool = True,
     ) -> Dict[str, Any]:
         """
         Run a prompt through the underlying agent and return the response.
@@ -131,7 +72,7 @@ class ReviveAgent:
         Returns:
             dict: Dictionary containing:
                 - response: The complete response text
-                - tool_calls: List of tool calls made by cursor-agent
+                - tool_calls: List of tool calls made by the CLI agent
                 - command: The command that was executed
                 - model: The model used
                 - prompt_length: Length of the prompt
@@ -139,24 +80,19 @@ class ReviveAgent:
 
         Raises:
             ValueError: If the prompt is empty or None.
-            RuntimeError: If the Cursor CLI command fails.
+            RuntimeError: If the CLI command fails.
         """
         if not prompt or not prompt.strip():
             raise ValueError("Prompt cannot be empty or None")
-
-        print("--------------------------------")
-        print("Running with model: ", self.model, "and prompt: ")
-        print(prompt)
-        print("--------------------------------")
-
-        # Track tool calls and metrics for Weave logging
-        tool_calls_log = []
-        json_messages_processed = 0
-        assistant_messages_count = 0
-        tool_call_messages_count = 0
-
+        
+        if summarize_reduce:
+            print("--------------------------------")
+            print("Running with model: ", self.model, "and prompt: ")
+            print(prompt)
+            print("--------------------------------")
+        
         try:
-            # Construct the command to run the Cursor CLI with the specified model and prompt
+            # Construct the command to run the CLI with the specified model and prompt
             command = [
                 "cursor-agent",
                 "chat",
@@ -179,89 +115,10 @@ class ReviveAgent:
             )
             
             full_response = ""
-            tool_call_count = 0
-            token_count = 0
-            
             # Read output line by line
             try:
-                for line in process.stdout:
-                    if line.strip():
-                        try:
-                            # Parse the JSON line
-                            json_data = json.loads(line)
-                            
-                            # Extract text content from the message
-                            if json_data.get("type") == "assistant":
-                                message = json_data.get("message", {})
-                                content = message.get("content", [])
-                                if content and len(content) > 0:
-                                    text = content[0].get("text", "")
-                                    if text:
-                                        # With --stream-partial-output, each message contains accumulated text
-                                        # We need to print only the new part (delta)
-                                        if text != full_response:  # Only process if text has changed
-                                            if text.startswith(full_response):
-                                                # Text is an extension of what we have - print the delta
-                                                delta = text[len(full_response):]
-                                                if delta:
-                                                    print(delta, end='', flush=True)
-                                                    if stream_callback:
-                                                        stream_callback(delta)
-                                            else:
-                                                # Text doesn't start with our accumulated text
-                                                # This might be the first chunk or a replacement
-                                                # Print the entire text
-                                                print(text, end='', flush=True)
-                                                if stream_callback:
-                                                    stream_callback(text)
-                                            
-                                            full_response = text
-                            elif json_data.get("type") == "tool_call":
-                                # Display tool call messages in a readable format
-                                subtype = json_data.get("subtype", "")
-                                tool_call = json_data.get("tool_call", {})
-                                
-                                if subtype == "started":
-                                    # Count the tool call
-                                    tool_call_count += 1
-                                    
-                                    # Extract tool information
-                                    tool_info = self._format_tool_call(tool_call)
-                                    if tool_info:
-                                        msg = f"\n🔧 {tool_info}\n"
-                                        print(msg, flush=True)
-                                        if stream_callback:
-                                            stream_callback(msg)
-                            
-                            # Track token usage if provided
-                            usage = json_data.get("usage", {})
-                            if "total_tokens" in usage:
-                                token_count = usage["total_tokens"]
-                            elif "completion_tokens" in usage:
-                                token_count += usage.get("completion_tokens", 0)
-                                            
-                        except json.JSONDecodeError:
-                            # If it's not valid JSON, skip it
-                            continue
-                
-                # Estimate tokens if not provided by the stream
-                if token_count == 0 and full_response:
-                    # Rough estimate: ~4 characters per token (common heuristic)
-                    token_count = len(full_response) // 4
-                
-                # Store stats in instance variables
-                self.last_tool_call_count = tool_call_count
-                self.last_token_count = token_count
-                
-                # Accumulate to total stats
-                self.total_tool_call_count += tool_call_count
-                self.total_token_count += token_count
-                
-                # Display stats for this call
-                stats_msg = f"\n📊 This call: {tool_call_count} tool calls | ~{token_count} tokens | Total so far: {self.total_tool_call_count} tool calls | ~{self.total_token_count} tokens\n"
-                print(stats_msg)
-                if stream_callback:
-                    stream_callback(stats_msg)
+                data = stream_json_output(process, stream_callback)                    
+                full_response = data["full_response"]
                 
                 # Wait for the process to complete
                 process.wait(timeout=timeout)
@@ -269,7 +126,10 @@ class ReviveAgent:
                 
                 if process.returncode != 0:
                     stderr = process.stderr.read()
-                    raise RuntimeError(f"Cursor CLI command failed: {stderr}")
+                    raise RuntimeError(f"Agent CLI command failed: {stderr}")
+                
+                if summarize_reduce:
+                    self.summarize_reduce(prompt, full_response, "./")
                 
                 return full_response
                 
@@ -277,21 +137,8 @@ class ReviveAgent:
                 process.kill()
                 raise RuntimeError(f"Command timed out after {timeout} seconds")
             
-        except subprocess.TimeoutExpired as e:
-            with weave.attributes(
-                {"error_type": "timeout_expired", "timeout_seconds": timeout}
-            ):
-                raise RuntimeError(f"Command timed out after {timeout} seconds") from e
-        except FileNotFoundError as e:
-            with weave.attributes(
-                {"error_type": "cursor_cli_not_found", "command": command[0]}
-            ):
-                raise RuntimeError("Cursor CLI not found") from e
         except Exception as e:
-            with weave.attributes(
-                {"error_type": "unexpected_error", "error_message": str(e)}
-            ):
-                raise RuntimeError(f"Unexpected error occurred: {str(e)}") from e
+            raise RuntimeError(f"Unexpected error occurred: {str(e)}") from e
 
     @weave.op()
     def run_prompt_with_context(
@@ -328,7 +175,7 @@ class ReviveAgent:
     @weave.op()
     def set_model(self, model: str) -> None:
         """
-        Change the model used by the agent.
+        Change the model used by the ReviceCLI agent.
 
         Args:
             model (str): The new model to use.
@@ -391,6 +238,29 @@ class ReviveAgent:
         print(f"Total Tool Calls: {self.total_tool_call_count}")
         print(f"Total Tokens: ~{self.total_token_count}")
         print("="*80 + "\n")
+
+    def summarize_reduce(self, prompt, response, global_dir):
+        """
+        Summarize the mistakes made by the agent and reduce them to a log of mistakes.
+        """
+        global_prompt = f"""
+        You are a mistake summarizer. 
+        You need to summarize mistakes related code integration and depencency resolution only, else skip it.
+        You will be given a prompt and a response, which you need to use and identify mistakes the agentic transaction made.
+
+        1. If a file {global_dir}/mistake_log.md exists, read it and understad what mistakes are already logged
+        2. Read the file {global_dir}/mistake_log_dump.txt, and try to understand what were the key mistakes that were made in that agentic transaction
+        3. Make sure to conslidate all mistakes in the {global_dir}/mistake_log.md file at the end, and only keep a max of 10 mistakes
+           The mistakes should only be focussed on code integration and depencency resolution only, keep only high value mistakes
+           Format should be: Mistake: <mistake> | How to fix: <how to fix>
+        """
+        # Put the mistake lot in {global_dir}/mistake_log_dump.txt
+        with open(f"{global_dir}/mistake_log_dump.txt", "w") as f:
+            f.write(f"Prompt: {prompt}\n")
+            f.write(f"Response: {response}\n")
+
+        # Run the prompt
+        self.run_prompt(global_prompt, summarize_reduce=False)
 
 
 # Example usage and testing

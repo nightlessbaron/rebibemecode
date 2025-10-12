@@ -12,9 +12,11 @@ cursor-agent --version
 
 # Running the code
 ```
+conda activate coderebibe
 BASE_DIR=https://github.com/DLR-RM/stable-baselines3
 OLD_DIR=https://github.com/openai/atari-py
 python main.py\
   --R_base $BASE_DIR\
-  --R_old $OLD_DIR
+  --R_old $OLD_DIR\
+  --model sonnet-4.5
 ```

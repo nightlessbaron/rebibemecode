@@ -14,7 +14,7 @@ def test_summarize_project():
 
     try:
         # Initialize the agent
-        agent = ReviveAgent()
+        agent = ReviveAgent(model='auto')
         print(f"✓ ReviveAgent initialized with model: {agent.get_model()}")
 
         # Simple test prompt
@@ -66,10 +66,10 @@ def test_shell_execution():
 if __name__ == "__main__":
     success = test_summarize_project()
     if not success:
-        print("\nNote: Make sure Cursor CLI is installed:")
+        print("\nNote: Make sure CLI is installed:")
         print("curl https://cursor.com/install -fsS | bash")
 
-    success = test_shell_execution()
-    if not success:
-        print("\nNote: Make sure Cursor CLI is installed:")
-        print("curl https://cursor.com/install -fsS | bash")
+    # success = test_shell_execution()
+    # if not success:
+    #     print("\nNote: Make sure CLI is installed:")
+    #     print("curl https://cursor.com/install -fsS | bash")
