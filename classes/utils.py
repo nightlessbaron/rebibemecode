@@ -144,6 +144,8 @@ def verify_base_repo_setup(agent, workdir, GLOBAL_CONTEXT):
         if not os.path.exists(file):
             return False
     
+    return True
+
 def verify_if_env_is_setup_correctly(agent, workdir, GLOBAL_CONTEXT):
     command = f"""
     1. Activate env_r_base and make the script {workdir}/test_base.sh run correctly. If yes, append 
@@ -156,7 +158,7 @@ def verify_if_env_is_setup_correctly(agent, workdir, GLOBAL_CONTEXT):
     
     # Read the file {workdir}/agent_summary.txt
     with open(f"{workdir}/agent_summary.txt", "r") as f:
-        return "r_base: env setup and unit tests succssful" in f.read()
+        return "r_base: env setup and unit tests successful" in f.read()
 
 def setup_r_base_environment(agent, workdir, GLOBAL_CONTEXT):
      # Make the conda environment and generate summary
@@ -202,13 +204,15 @@ def resolve_dependencies(agent, r_base, r_old, workdir, GLOBAL_CONTEXT):
     prompt = f"""
     1. Make obvious changes to the {workdir}/r_old code so that it can run with the env_r_base environment
     2. Activate env_r_base and try to run {workdir}/test_old.sh. If we get errors, iterate and try to fix the code in R_old. 
-       Only add dependencies / make modifications in env_r_base if absolutely necessary
+       Do not pip install everything from R_old, only add dependencies / make modifications in env_r_base if absolutely necessary.
     3. If you modify env_r_base, make sure you run {workdir}/test_base.sh to verify test_base.sh doesn't break
     4. Verify we can run {workdir}/test_old.sh with env_r_base. If yes, append 
              'r_old: env setup and unit tests successful' 
        else write 
              'r_old: env setup and unit tests failed' 
        in {workdir}/agent_summary.txt
+    5. Make sure that the base environment is still working correctly by running {workdir}/test_base.sh. 
+       If not can you please iterate and fix it
     """
     agent.run_prompt(GLOBAL_CONTEXT + prompt)
 
@@ -225,17 +229,18 @@ def verify_complete_integration(agent, r_base, r_old, workdir, GLOBAL_CONTEXT):
              'r_old: env setup and unit tests failed' 
        in {workdir}/final_summary.txt
     3. Run and verify test_env.sh works correctly, if yes append 
-             'r_old: env setup and unit tests successful' 
+             'r_base: env setup and unit tests successful' 
        else write 
-             'r_old: env setup and unit tests failed' 
+             'r_base: env setup and unit tests failed' 
        in {workdir}/final_summary.txt
     """
     agent.run_prompt(GLOBAL_CONTEXT + prompt)
     
     # Get 2 variables base_setup_correct and old_setup_correct
     with open(f"{workdir}/final_summary.txt", "r") as f:
-        base_setup_correct = "r_base: env setup and unit tests successful" in f.read()
-        old_setup_correct = "r_old: env setup and unit tests successful" in f.read()
+        content = f.read()
+        old_setup_correct = "r_old: env setup and unit tests successful" in content
+        base_setup_correct = "r_base: env setup and unit tests successful" in content
     return base_setup_correct, old_setup_correct
 
 

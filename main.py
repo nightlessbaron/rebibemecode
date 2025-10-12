@@ -25,6 +25,8 @@ Specific work to do:
 
 def revive_code(git_repo_base, git_repo_old, workdir):
     global GLOBAL_CONTEXT
+    GLOBAL_CONTEXT = GLOBAL_CONTEXT + f"R_base: {git_repo_base}\nR_old: {git_repo_old}"
+
     """Revive code from the old repository to the new repository."""
     cprint("--------------------------------", "green")
     cprint("Revive code with the following parameters:", "green")
@@ -33,8 +35,8 @@ def revive_code(git_repo_base, git_repo_old, workdir):
     cprint(f"Work directory: {workdir}", "green")
     cprint("--------------------------------", "green")
 
-    # clone_repos(git_repo_base, r_old, workdir)
-    GLOBAL_CONTEXT = GLOBAL_CONTEXT + f"R_base: {git_repo_base}\nR_old: {git_repo_old}"
+    # Clone the repositories
+    clone_repos(git_repo_base, git_repo_old, workdir)
 
     # Initialize the agent
     agent = CursorCLIAgent()
@@ -62,15 +64,12 @@ def revive_code(git_repo_base, git_repo_old, workdir):
 
     # Final verification
     base_setup_correct, old_setup_correct = utils.verify_complete_integration(agent, git_repo_base, git_repo_old, workdir, GLOBAL_CONTEXT)
-    if not base_setup_correct:
-        cprint("Base setup verification failed", "red")
-        return
-    cprint("Base setup verification complete", "green")
-    if not old_setup_correct:
-        cprint("Old setup verification failed", "red")
-        return
-    cprint("Old setup verification complete", "green")
-    cprint("All setup verification complete", "green")
+    cprint("Final verification status:", "green")
+    base_color = "green" if base_setup_correct else "red"
+    old_color = "green" if old_setup_correct else "red"
+    cprint(f"Base setup verification: {base_color=='green'}", base_color)
+    cprint(f"Old setup verification: {old_color=='green'}", old_color)
+        
     
 
 if __name__ == "__main__":
@@ -103,8 +102,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Add time to the work directory
-    # args.workdir = f"{args.workdir}/invocation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    args.workdir = f"{args.workdir}/invocation_20251011_204741"
+    args.workdir = f"{args.workdir}/invocation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     # Create the work directory if it doesn't exist
     os.makedirs(args.workdir, exist_ok=True)
