@@ -183,7 +183,7 @@ def verify_if_env_is_setup_correctly(
              'r_base: env setup and unit tests failed'
        in {workdir}/agent_summary.txt
     """
-    result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback)
+    result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback, summarize_reduce=False)
 
     # Read the file {workdir}/agent_summary.txt
     with open(f"{workdir}/agent_summary.txt", "r") as f:
@@ -269,6 +269,7 @@ def verify_complete_integration(
     agent, r_base, r_old, workdir, GLOBAL_CONTEXT, stream_callback=None
 ):
     prompt = f"""
+    This is the final testing. Dont try a lot to fix things here, main purpose is testing (with minor fixes only)
     1. Activate env_r_base
     2. Run and verify test_old.sh works correctly, if yes append
              'r_old: env setup and unit tests successful'

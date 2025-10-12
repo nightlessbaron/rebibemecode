@@ -239,6 +239,7 @@ class ReviveAgent:
         3. Make sure to conslidate all mistakes in the {global_dir}/mistake_log.md file at the end, and only keep a max of 10 mistakes
            The mistakes should only be focussed on code integration and depencency resolution only, keep only medium-high value mistakes
            In case something took a long time to fix (>2 tries), make sure to record it as a mistake (so you can shortcut it later)
+           Try not to keep this file empty (0 mistakes), as we really want to self improve over iterations
            Format should be: Mistake: <mistake> | How to fix: <how to fix>
         """
         # Put the mistake lot in {global_dir}/mistake_log_dump.txt
