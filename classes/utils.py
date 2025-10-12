@@ -153,7 +153,7 @@ def summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT, stream_callback=No
     2. Write a file summarize_r_base.md in the folder {workdir} that summarizes what the repository is about.
     3. Make a script {workdir}/setup_r_base.sh to make a conda environment env_r_base and install the dependencies to run r_base
     4. Run the {workdir}/setup_r_base.sh and make sure the conda environment is setup correctly
-    5. Write a single file {workdir}/test_base.sh which tests if r_base is working properly. Make sure to follow test generation  (and generate a test with video if required).
+    5. Write a single file {workdir}/test_base.sh which tests if r_base is working properly. Make sure to follow test generation  (and generate a test with video if required, and store in {workdir}/viz_base.<ext>)
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback)
     return result
@@ -223,7 +223,7 @@ def setup_r_old_environment(
     1. Clone the repo from {r_old}, and make sure you have the code at {workdir}/r_old
     2. Read code and dependencies from {workdir}/r_old and understand at a high level what it is
        Summarize it in {workdir}/summarize_r_old.md
-    3. Write a single file {workdir}/test_old.sh which tests if r_old is working properly. Make sure to follow test generation guidelines (and generate a test with video if required)
+    3. Write a single file {workdir}/test_old.sh which tests if r_old is working properly. Make sure to follow test generation guidelines (and generate a test with video if required, and store in {workdir}/viz_old.<ext>)
        Just ensure decent functionality, no need to run it successfully. 
        If you absolutely have to run it, make sure to use env_r_base.
     """

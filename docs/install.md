@@ -36,3 +36,4 @@ python main.py\
 
 # Run with GUI
 python app.py
+```
