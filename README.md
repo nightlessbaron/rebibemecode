@@ -10,10 +10,8 @@ Rebibemecode is an intelligent Flask web application that leverages Claude Sonne
 
 Watch ReviveAgent in action:
 
-<video width="100%" controls>
-  <source src="assests/demo_webhack.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+[![Watch the video](https://img.youtube.com/vi/rmgXhW6sZ6o/0.jpg)](https://www.youtube.com/watch?v=rmgXhW6sZ6o)
+
 
 > *Full integration workflow showing repository analysis, dependency resolution, and code migration*
 
