@@ -26,7 +26,9 @@
         "Shell(env)",
         "Shell(echo)",
         "Shell(cat)",
-        "Shell(chmod)"
+        "Shell(chmod)",
+        "Shell(flask)",
+        "Shell(swig)"
       ],
       "deny": [
         "Shell(sudo)",

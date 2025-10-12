@@ -124,7 +124,7 @@ def clone_repos(r_base, r_old, workdir):
     cprint("All repositories cloned successfully")
 
 
-def summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT):
+def summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT, stream_callback=None):
     command = f"""
     1. Read the repository at {workdir}/r_base at a high level.
     2. Write a file summarize_r_base.md in the folder {workdir} that summarizes what the repository is about.
@@ -132,7 +132,7 @@ def summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT):
     4. Run the {workdir}/setup_r_base.sh and make sure the conda environment is setup correctly. Delete the env env_r_base if it already exists.
     5. Write a single file {workdir}/test_base.sh which tests if r_base is working properly.
     """
-    agent.run_prompt(GLOBAL_CONTEXT + command)
+    agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback)
 
 def verify_base_repo_setup(agent, workdir, GLOBAL_CONTEXT):
     to_verify_files = [
@@ -143,10 +143,9 @@ def verify_base_repo_setup(agent, workdir, GLOBAL_CONTEXT):
     for file in to_verify_files:
         if not os.path.exists(file):
             return False
-    
     return True
-
-def verify_if_env_is_setup_correctly(agent, workdir, GLOBAL_CONTEXT):
+    
+def verify_if_env_is_setup_correctly(agent, workdir, GLOBAL_CONTEXT, stream_callback=None):
     command = f"""
     1. Activate env_r_base and make the script {workdir}/test_base.sh run correctly. If yes, append 
              'r_base: env setup and unit tests successful' 
@@ -154,16 +153,16 @@ def verify_if_env_is_setup_correctly(agent, workdir, GLOBAL_CONTEXT):
              'r_base: env setup and unit tests failed' 
        in {workdir}/agent_summary.txt
     """
-    agent.run_prompt(GLOBAL_CONTEXT + command)
+    agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback)
     
     # Read the file {workdir}/agent_summary.txt
     with open(f"{workdir}/agent_summary.txt", "r") as f:
         return "r_base: env setup and unit tests successful" in f.read()
 
-def setup_r_base_environment(agent, workdir, GLOBAL_CONTEXT):
+def setup_r_base_environment(agent, workdir, GLOBAL_CONTEXT, stream_callback=None):
      # Make the conda environment and generate summary
     cprint("Making the conda environment and setting up unit tests for r_base", "green")
-    summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT)
+    summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT, stream_callback)
     summary_and_setup_complete = verify_base_repo_setup(agent, workdir, GLOBAL_CONTEXT)
     if not summary_and_setup_complete:
         cprint("Summary and setup for r_base failed", "red")
@@ -172,14 +171,14 @@ def setup_r_base_environment(agent, workdir, GLOBAL_CONTEXT):
 
     # Verify the conda environment and unit tests
     cprint("Verifying the conda environment and unit tests", "green")
-    is_env_setup_correctly = verify_if_env_is_setup_correctly(agent, workdir, GLOBAL_CONTEXT)
+    is_env_setup_correctly = verify_if_env_is_setup_correctly(agent, workdir, GLOBAL_CONTEXT, stream_callback)
     if not is_env_setup_correctly:
         cprint("Conda environment and unit tests verification failed", "red")
         return False
     cprint("Conda environment and unit tests verified", "green")
     return is_env_setup_correctly
 
-def setup_r_old_environment(agent, r_old, workdir, GLOBAL_CONTEXT):
+def setup_r_old_environment(agent, r_old, workdir, GLOBAL_CONTEXT, stream_callback=None):
     """
     We will clone the repo and read code and summarize it.
     We will 
@@ -190,7 +189,7 @@ def setup_r_old_environment(agent, r_old, workdir, GLOBAL_CONTEXT):
        Summarize it in {workdir}/summarize_r_old.md 
     3. Write a single file {workdir}/test_old.sh which tests if r_old is working properly.
     """
-    agent.run_prompt(GLOBAL_CONTEXT + prompt)
+    agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
 
     # Assert if the the files have been created
     if not os.path.exists(f"{workdir}/summarize_r_old.md"):
@@ -200,7 +199,7 @@ def setup_r_old_environment(agent, r_old, workdir, GLOBAL_CONTEXT):
 
     return True
 
-def resolve_dependencies(agent, r_base, r_old, workdir, GLOBAL_CONTEXT):
+def resolve_dependencies(agent, r_base, r_old, workdir, GLOBAL_CONTEXT, stream_callback=None):
     prompt = f"""
     1. Make obvious changes to the {workdir}/r_old code so that it can run with the env_r_base environment
     2. Activate env_r_base and try to run {workdir}/test_old.sh. If we get errors, iterate and try to fix the code in R_old. 
@@ -214,13 +213,13 @@ def resolve_dependencies(agent, r_base, r_old, workdir, GLOBAL_CONTEXT):
     5. Make sure that the base environment is still working correctly by running {workdir}/test_base.sh. 
        If not can you please iterate and fix it
     """
-    agent.run_prompt(GLOBAL_CONTEXT + prompt)
+    agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
 
     # Read the file {workdir}/agent_summary.txt
     with open(f"{workdir}/agent_summary.txt", "r") as f:
         return "r_old: env setup and unit tests successful" in f.read()
 
-def verify_complete_integration(agent, r_base, r_old, workdir, GLOBAL_CONTEXT):
+def verify_complete_integration(agent, r_base, r_old, workdir, GLOBAL_CONTEXT, stream_callback=None):
     prompt = f"""
     1. Activate env_r_base
     2. Run and verify test_old.sh works correctly, if yes append 
@@ -234,7 +233,7 @@ def verify_complete_integration(agent, r_base, r_old, workdir, GLOBAL_CONTEXT):
              'r_base: env setup and unit tests failed' 
        in {workdir}/final_summary.txt
     """
-    agent.run_prompt(GLOBAL_CONTEXT + prompt)
+    agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
     
     # Get 2 variables base_setup_correct and old_setup_correct
     with open(f"{workdir}/final_summary.txt", "r") as f:

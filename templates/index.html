@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Revive - Repository Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            background: #f6f8fa;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .help-text {
+            color: #666;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .example-section {
+            background: #f6f8fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+        }
+
+        .example-section h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .example-section code {
+            display: block;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #667eea;
+            margin: 5px 0;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Code Revive</h1>
+            <p>Integrate older repositories with latest codebases</p>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <form id="reviveForm">
+            <div class="form-group">
+                <label for="r_base">Base Repository (R_base)</label>
+                <input 
+                    type="text" 
+                    id="r_base" 
+                    name="r_base" 
+                    placeholder="https://github.com/username/base-repository"
+                    value="https://github.com/Farama-Foundation/Gymnasium"
+                    required
+                >
+                <div class="help-text">The modern/latest repository that you want to integrate code into</div>
+            </div>
+
+            <div class="form-group">
+                <label for="r_old">Old Repository (R_old)</label>
+                <input 
+                    type="text" 
+                    id="r_old" 
+                    name="r_old" 
+                    placeholder="https://github.com/username/old-repository"
+                    value="https://github.com/igilitschenski/multi_car_racing/"
+                    required
+                >
+                <div class="help-text">The older repository that needs to be integrated</div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                Start Integration Process
+            </button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Submitting job...</p>
+        </div>
+
+        <div class="example-section">
+            <h3>📝 Example Repositories</h3>
+            <p style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                The form is pre-filled with default examples. You can replace them with your own repositories.
+            </p>
+            <strong style="font-size: 13px;">Base:</strong>
+            <code>https://github.com/Farama-Foundation/Gymnasium</code>
+            <strong style="font-size: 13px;">Old:</strong>
+            <code>https://github.com/igilitschenski/multi_car_racing/</code>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('reviveForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const loading = document.getElementById('loading');
+        const message = document.getElementById('message');
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const r_base = document.getElementById('r_base').value.trim();
+            const r_old = document.getElementById('r_old').value.trim();
+
+            if (!r_base || !r_old) {
+                showMessage('Please fill in both repository URLs', 'error');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            message.style.display = 'none';
+
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        r_base: r_base,
+                        r_old: r_old
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage('Job submitted successfully! Redirecting to status page...', 'success');
+                    setTimeout(() => {
+                        window.location.href = `/results/${data.job_id}`;
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Failed to submit job');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Status - Code Revive</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .job-id {
+            background: #f6f8fa;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 20px;
+            word-break: break-all;
+        }
+
+        .status-card {
+            background: #f6f8fa;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+
+        .status-badge.queued {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+
+        .status-badge.running {
+            background: #74b9ff;
+            color: #0984e3;
+        }
+
+        .status-badge.completed {
+            background: #55efc4;
+            color: #00b894;
+        }
+
+        .status-badge.failed {
+            background: #ff7675;
+            color: #d63031;
+        }
+
+        .current-step {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e1e4e8;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .repo-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .repo-info h3 {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .repo-item {
+            margin-bottom: 12px;
+        }
+
+        .repo-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .repo-value {
+            color: #667eea;
+            font-size: 14px;
+            word-break: break-all;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f6f8fa;
+            color: #333;
+            border: 2px solid #e1e4e8;
+        }
+
+        .btn-secondary:hover {
+            background: #e1e4e8;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-details {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .error-details h4 {
+            color: #c53030;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .error-details p {
+            color: #742a2a;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .timestamp {
+            color: #999;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .stream-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .stream-output h3 {
+            color: #569cd6;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stream-content {
+            color: #d4d4d4;
+        }
+
+        .stream-output::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .stream-output::-webkit-scrollbar-track {
+            background: #2d2d30;
+            border-radius: 4px;
+        }
+
+        .stream-output::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+
+        .stream-output::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔄 Integration Status</h1>
+        </div>
+
+        <div class="job-id">
+            <strong>Job ID:</strong> {{ job_id }}
+        </div>
+
+        <div class="status-card" id="statusCard">
+            <div class="status-badge" id="statusBadge">{{ job_data.status }}</div>
+            <div class="current-step" id="currentStep">
+                <span id="spinner" class="spinner" style="display: none;"></span>
+                <strong>Current Step:</strong> <span id="stepText">{{ job_data.current_step }}</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 25%;"></div>
+            </div>
+            <div id="errorDetails" class="error-details" style="display: none;">
+                <h4>❌ Error Details</h4>
+                <p id="errorText"></p>
+            </div>
+        </div>
+
+        <div class="stream-output" id="streamOutput">
+            <h3>📟 Live Agent Output</h3>
+            <div class="stream-content" id="streamContent">Waiting for agent output...</div>
+        </div>
+
+        <div class="repo-info">
+            <h3>📦 Repository Information</h3>
+            <div class="repo-item">
+                <span class="repo-label">Base Repository (R_base):</span>
+                <span class="repo-value">{{ job_data.r_base }}</span>
+            </div>
+            <div class="repo-item">
+                <span class="repo-label">Old Repository (R_old):</span>
+                <span class="repo-value">{{ job_data.r_old }}</span>
+            </div>
+            <div class="repo-item">
+                <span class="repo-label">Work Directory:</span>
+                <span class="repo-value">{{ job_data.work_directory }}</span>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <a href="/" class="btn btn-secondary">← New Integration</a>
+            <button class="btn btn-primary" id="refreshBtn" onclick="refreshStatus()">🔄 Refresh Status</button>
+        </div>
+
+        <div class="timestamp" id="timestamp">
+            Started at: {{ job_data.started_at }}
+        </div>
+    </div>
+
+    <script>
+        const jobId = '{{ job_id }}';
+        let autoRefreshInterval;
+        let eventSource;
+
+        const statusConfig = {
+            'queued': { color: '#ffeaa7', progress: 10 },
+            'running': { color: '#74b9ff', progress: 50 },
+            'completed': { color: '#55efc4', progress: 100 },
+            'failed': { color: '#ff7675', progress: 100 }
+        };
+
+        function updateUI(data) {
+            const statusBadge = document.getElementById('statusBadge');
+            const stepText = document.getElementById('stepText');
+            const progressFill = document.getElementById('progressFill');
+            const spinner = document.getElementById('spinner');
+            const errorDetails = document.getElementById('errorDetails');
+            const errorText = document.getElementById('errorText');
+
+            // Update status badge
+            statusBadge.textContent = data.status;
+            statusBadge.className = `status-badge ${data.status}`;
+
+            // Update current step
+            stepText.textContent = data.current_step || 'Waiting...';
+
+            // Show/hide spinner
+            if (data.status === 'running') {
+                spinner.style.display = 'inline-block';
+            } else {
+                spinner.style.display = 'none';
+            }
+
+            // Update progress bar
+            const config = statusConfig[data.status] || { progress: 25 };
+            progressFill.style.width = config.progress + '%';
+
+            // Show error if failed
+            if (data.status === 'failed' && data.error) {
+                errorDetails.style.display = 'block';
+                errorText.textContent = data.error;
+            } else {
+                errorDetails.style.display = 'none';
+            }
+
+            // Stop auto-refresh if job is completed or failed
+            if (data.status === 'completed' || data.status === 'failed') {
+                clearInterval(autoRefreshInterval);
+                if (eventSource) {
+                    eventSource.close();
+                }
+            }
+        }
+
+        async function refreshStatus() {
+            try {
+                const response = await fetch(`/status/${jobId}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateUI(data);
+                } else {
+                    console.error('Failed to fetch status:', data.error);
+                }
+            } catch (error) {
+                console.error('Error refreshing status:', error);
+            }
+        }
+
+        function startStreaming() {
+            const streamContent = document.getElementById('streamContent');
+            
+            // Connect to Server-Sent Events endpoint
+            eventSource = new EventSource(`/stream/${jobId}`);
+            
+            eventSource.onmessage = function(event) {
+                const data = event.data;
+                
+                // Check if streaming is done
+                if (data === '[DONE]') {
+                    streamContent.textContent += '\n\n✅ Streaming completed.';
+                    eventSource.close();
+                    return;
+                }
+                
+                // Check for error
+                if (data.startsWith('ERROR:')) {
+                    streamContent.textContent = data;
+                    return;
+                }
+                
+                // Clear initial message if this is the first chunk
+                if (streamContent.textContent === 'Waiting for agent output...') {
+                    streamContent.textContent = '';
+                }
+                
+                // Unescape newlines
+                const text = data.replace(/\\n/g, '\n');
+                
+                // Append the text to the stream content
+                streamContent.textContent += text;
+                
+                // Auto-scroll to bottom
+                const streamOutput = document.getElementById('streamOutput');
+                streamOutput.scrollTop = streamOutput.scrollHeight;
+            };
+            
+            eventSource.onerror = function(error) {
+                console.error('EventSource error:', error);
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    streamContent.textContent += '\n\n⚠️ Stream connection closed.';
+                }
+            };
+        }
+
+        // Auto-refresh every 3 seconds
+        autoRefreshInterval = setInterval(refreshStatus, 3000);
+
+        // Initial load
+        window.addEventListener('load', () => {
+            refreshStatus();
+            startStreaming();
+        });
+    </script>
+</body>
+</html>
+

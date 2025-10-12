@@ -1,6 +1,7 @@
 import subprocess
 import json
-from typing import Optional, Dict, Any
+import sys
+from typing import Optional, Dict, Any, Callable, Generator
 
 
 class CursorCLIAgent:
@@ -11,7 +12,7 @@ class CursorCLIAgent:
     and receive responses as strings.
     """
     
-    def __init__(self, model: str = 'sonnet-4.5'):
+    def __init__(self, model: str = 'auto'):
         """
         Initialize the CursorCLIAgent with the specified model.
         
@@ -43,16 +44,64 @@ class CursorCLIAgent:
                 "curl https://cursor.com/install -fsS | bash"
             ) from e
     
-    def run_prompt(self, prompt: str, timeout: int = 600) -> str:
+    def _format_tool_call(self, tool_call: Dict[str, Any]) -> Optional[str]:
+        """
+        Format a tool call into a human-readable string.
+        
+        Args:
+            tool_call: The tool call dictionary from the JSON stream
+            
+        Returns:
+            Formatted string describing the tool call, or None if not relevant
+        """
+        # Check for different tool types
+        if "readToolCall" in tool_call:
+            path = tool_call["readToolCall"].get("args", {}).get("path", "")
+            return f"Reading file: {path}"
+        
+        elif "editToolCall" in tool_call:
+            path = tool_call["editToolCall"].get("args", {}).get("path", "")
+            return f"Editing file: {path}"
+        
+        elif "writeToolCall" in tool_call:
+            path = tool_call["writeToolCall"].get("args", {}).get("path", "")
+            return f"Writing file: {path}"
+        
+        elif "shellToolCall" in tool_call:
+            cmd = tool_call["shellToolCall"].get("args", {}).get("command", "")
+            # Truncate long commands
+            if len(cmd) > 80:
+                cmd = cmd[:77] + "..."
+            return f"Running command: {cmd}"
+        
+        elif "lsToolCall" in tool_call:
+            path = tool_call["lsToolCall"].get("args", {}).get("path", "")
+            return f"Listing directory: {path}"
+        
+        elif "grepToolCall" in tool_call:
+            pattern = tool_call["grepToolCall"].get("args", {}).get("pattern", "")
+            return f"Searching for: {pattern}"
+        
+        elif "codebaseSearchToolCall" in tool_call:
+            query = tool_call["codebaseSearchToolCall"].get("args", {}).get("query", "")
+            if len(query) > 60:
+                query = query[:57] + "..."
+            return f"Searching codebase: {query}"
+        
+        # Return None for other tool types we don't want to display
+        return None
+    
+    def run_prompt(self, prompt: str, timeout: int = 600, stream_callback: Optional[Callable[[str], None]] = None) -> str:
         """
         Run a prompt through the Cursor CLI agent and return the response.
         
         Args:
             prompt (str): The input prompt to send to the Cursor CLI agent.
-            timeout (int): Maximum time in seconds to wait for response. Defaults to 60.
+            timeout (int): Maximum time in seconds to wait for response. Defaults to 600.
+            stream_callback (callable, optional): A callback function to receive streaming text chunks.
         
         Returns:
-            str: The response from the Cursor CLI agent as a string.
+            str: The complete response from the Cursor CLI agent as a string.
             
         Raises:
             ValueError: If the prompt is empty or None.
@@ -78,19 +127,87 @@ class CursorCLIAgent:
                 prompt.strip()
             ]
             
-            # Execute the command and capture the output
-            result = subprocess.run(
+            # Use Popen to capture streaming output
+            process = subprocess.Popen(
                 command,
-                check=True,
-                timeout=timeout
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
             )
-            return result
+            
+            full_response = ""
+            
+            # Read output line by line
+            try:
+                for line in process.stdout:
+                    if line.strip():
+                        try:
+                            # Parse the JSON line
+                            json_data = json.loads(line)
+                            
+                            # Extract text content from the message
+                            if json_data.get("type") == "assistant":
+                                message = json_data.get("message", {})
+                                content = message.get("content", [])
+                                if content and len(content) > 0:
+                                    text = content[0].get("text", "")
+                                    if text:
+                                        # With --stream-partial-output, each message contains accumulated text
+                                        # We need to print only the new part (delta)
+                                        if text != full_response:  # Only process if text has changed
+                                            if text.startswith(full_response):
+                                                # Text is an extension of what we have - print the delta
+                                                delta = text[len(full_response):]
+                                                if delta:
+                                                    print(delta, end='', flush=True)
+                                                    if stream_callback:
+                                                        stream_callback(delta)
+                                            else:
+                                                # Text doesn't start with our accumulated text
+                                                # This might be the first chunk or a replacement
+                                                # Print the entire text
+                                                print(text, end='', flush=True)
+                                                if stream_callback:
+                                                    stream_callback(text)
+                                            
+                                            full_response = text
+                            elif json_data.get("type") == "tool_call":
+                                # Display tool call messages in a readable format
+                                subtype = json_data.get("subtype", "")
+                                tool_call = json_data.get("tool_call", {})
+                                
+                                if subtype == "started":
+                                    # Extract tool information
+                                    tool_info = self._format_tool_call(tool_call)
+                                    if tool_info:
+                                        msg = f"\n🔧 {tool_info}\n"
+                                        print(msg, flush=True)
+                                        if stream_callback:
+                                            stream_callback(msg)
+                                            
+                        except json.JSONDecodeError:
+                            # If it's not valid JSON, skip it
+                            continue
+                
+                # Wait for the process to complete
+                process.wait(timeout=timeout)
+                print()  # Add newline after streaming
+                
+                if process.returncode != 0:
+                    stderr = process.stderr.read()
+                    raise RuntimeError(f"Cursor CLI command failed: {stderr}")
+                
+                return full_response
+                
+            except subprocess.TimeoutExpired:
+                process.kill()
+                raise RuntimeError(f"Command timed out after {timeout} seconds")
             
         except subprocess.TimeoutExpired as e:
             raise RuntimeError(f"Command timed out after {timeout} seconds") from e
-        except subprocess.CalledProcessError as e:
-            error_msg = e.stderr.strip() if e.stderr else "Unknown error"
-            raise RuntimeError(f"Cursor CLI command failed: {error_msg}") from e
+        except FileNotFoundError as e:
+            raise RuntimeError("Cursor CLI not found") from e
         except Exception as e:
             raise RuntimeError(f"Unexpected error occurred: {str(e)}") from e
     
