@@ -3,6 +3,128 @@ from typing import Optional, Dict, Any, Callable
 import weave
 from classes.clean_logger import stream_json_output, StreamCollector
 from termcolor import cprint
+import multiprocessing
+import time
+import queue
+
+
+class ParallelPromptHandle:
+    """
+    Handle for a non-blocking parallel prompt execution.
+    Use this to check status and get results.
+    """
+    def __init__(self, process: multiprocessing.Process, result_queue: multiprocessing.Queue, timeout: int):
+        self.process = process
+        self.result_queue = result_queue
+        self.timeout = timeout
+        self.start_time = time.time()
+        self._cached_result = None
+        self._is_finished = False
+    
+    def is_finished(self) -> bool:
+        """Check if the parallel execution has finished."""
+        if self._is_finished:
+            return True
+            
+        if not self.process.is_alive():
+            self._is_finished = True
+            return True
+            
+        return False
+    
+    def is_timeout(self) -> bool:
+        """Check if the execution has exceeded the timeout."""
+        return (time.time() - self.start_time) > self.timeout
+    
+    def get_result(self, wait: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        Get the result if available.
+        
+        Args:
+            wait (bool): If True, wait for result. If False, return None if not ready.
+            
+        Returns:
+            dict or None: Result dictionary if available, None if not ready (when wait=False)
+        """
+        if self._cached_result:
+            return self._cached_result
+            
+        try:
+            if wait:
+                # Wait for result or timeout
+                timeout_remaining = max(0, self.timeout - (time.time() - self.start_time))
+                if timeout_remaining <= 0:
+                    self._handle_timeout()
+                    return self._cached_result
+                    
+                result = self.result_queue.get(timeout=timeout_remaining)
+                self._cached_result = {
+                    "success": result['success'],
+                    "result": result['result'],
+                    "error": result['error'],
+                    "timeout": False,
+                    "stats": result['stats']
+                }
+                self._is_finished = True
+                
+            else:
+                # Non-blocking check
+                if self.is_timeout():
+                    self._handle_timeout()
+                    return self._cached_result
+                    
+                result = self.result_queue.get_nowait()
+                self._cached_result = {
+                    "success": result['success'],
+                    "result": result['result'],
+                    "error": result['error'],
+                    "timeout": False,
+                    "stats": result['stats']
+                }
+                self._is_finished = True
+                
+        except queue.Empty:
+            if wait and self.is_timeout():
+                self._handle_timeout()
+                return self._cached_result
+            return None
+        except Exception as e:
+            self._cached_result = {
+                "success": False,
+                "result": None,
+                "error": f"Unexpected error: {str(e)}",
+                "timeout": False,
+                "stats": None
+            }
+            self._is_finished = True
+            
+        return self._cached_result
+    
+    def _handle_timeout(self):
+        """Handle timeout by terminating the process."""
+        if self.process.is_alive():
+            self.process.terminate()
+            time.sleep(0.5)
+            if self.process.is_alive():
+                self.process.kill()
+                
+        self._cached_result = {
+            "success": False,
+            "result": None,
+            "error": f"Operation timed out after {self.timeout} seconds",
+            "timeout": True,
+            "stats": None
+        }
+        self._is_finished = True
+    
+    def terminate(self):
+        """Manually terminate the process."""
+        if self.process.is_alive():
+            self.process.terminate()
+            time.sleep(0.5)
+            if self.process.is_alive():
+                self.process.kill()
+        self._is_finished = True
 
 class ReviveAgent:
     """
@@ -34,6 +156,15 @@ class ReviveAgent:
         for usage_stat in self.usage_stats_saved:
             cprint(f"\t{usage_stat}", "green")
         cprint("-"*80, "green")
+
+        if self.summarize_reduce_handle:
+            cprint("Waiting for summarize_reduce to finish", "yellow")
+            self.summarize_reduce_handle.get_result(wait=True)
+            cprint("Summarize_reduce finished", "green")
+
+            # Kill the thread
+            self.summarize_reduce_handle.terminate()
+
     
     def _verify_cli(self) -> None:
         """
@@ -146,7 +277,7 @@ class ReviveAgent:
                     self.total_tokens_used += data["tokens"]
                     self.total_tool_calls_used += data["tool_calls"]
                     self.usage_stats_saved.append(f"📊 Usage Stats: {data['tool_calls']} tool calls | ~{data['tokens']} tokens")
-                    # self.summarize_reduce(prompt, full_response, "./")
+                    self.summarize_reduce(prompt, full_response, "./")
                 
                 return full_response
                 
@@ -236,7 +367,129 @@ class ReviveAgent:
             'tokens': self.total_tokens_used
         }
 
-    # Removed summarize_reduce method to speed up execution
+    def summarize_reduce(self, prompt, response, global_dir):
+        """
+        Summarize the mistakes made by the agent and reduce them to a log of mistakes.
+        """
+        global_prompt = f"""
+        You are a fast mistake summarizer. 
+        You need to quickly summarize mistakes related code integration and depencency resolution only, else skip it.
+        You will be given a prompt and a response, which you need to use and identify mistakes the agentic transaction made.
+
+        1. If a file {global_dir}/mistake_log.md exists, read it and understad what mistakes are already logged
+        2. Read the file {global_dir}/mistake_log_dump.txt, and try to understand what were the key mistakes that were made in that agentic transaction
+        3. In {global_dir}/mistake_log.md keep a log of at max 10 mistakes and 10 possible optimizations
+           If you have more data, make sure to consolidate and keep top 10 in each category
+           - Mistakes:
+                - The mistakes should only be focussed on code integration and depencency resolution only, keep only medium-high value mistakes
+                - Try not to keep this log empty (0 mistakes), as we really want to self improve over iterations
+           
+           - Possible Optimizations:
+                - At each invocation, atleast try to add 1 optimization / possible faster way of doing a subtask to the file
+                - In case something took a long time to fix (>=2 tries), make sure to record with possible optimization
+        Please be fast and efficient, dont spend too much time thinking unless required.
+        """
+        # Put the mistake lot in {global_dir}/mistake_log_dump.txt
+        with open(f"{global_dir}/mistake_log_dump.txt", "w") as f:
+            f.write(f"Prompt: {prompt}\n")
+            f.write(f"Response: {response}\n")
+
+        # Run the prompt in parallel
+        cprint("Running summarize_reduce in parallel", "yellow")
+        print("Prompt:", global_prompt)
+        self.summarize_reduce_handle = run_prompt_parallel(prompt=global_prompt, 
+                            model=self.model,
+                            summarize_reduce=False,
+                            timeout=200)
+
+        cprint("summarize_reduce started non-blocking", "green")
+
+
+# Standalone parallel execution function
+def run_prompt_parallel(
+    prompt: str, 
+    model: str = "auto", 
+    summarize_reduce: bool = True, 
+    timeout: int = 120,
+    stream_callback: Optional[Callable[[str], None]] = None
+) -> ParallelPromptHandle:
+    """
+    Run a prompt in a separate process with timeout (NON-BLOCKING).
+    
+    Args:
+        prompt (str): The prompt to send to the CLI agent
+        model (str): The model to use (default: "auto")
+        summarize_reduce (bool): Whether to summarize and reduce the response (default: True)
+        timeout (int): Timeout in seconds (default: 120 = 2 minutes)
+        stream_callback (Optional[Callable]): Callback for streaming output (note: not used in parallel mode)
+    
+    Returns:
+        ParallelPromptHandle: Handle to check status and get results
+        
+    Usage:
+        handle = run_prompt_parallel("Your prompt")
+        
+        # Non-blocking check
+        result = handle.get_result(wait=False)
+        if result:
+            print("Done:", result)
+        
+        # Blocking wait
+        result = handle.get_result(wait=True)
+        
+        # Status checks
+        if handle.is_finished():
+            print("Process completed")
+        if handle.is_timeout():
+            print("Process timed out")
+    """
+    
+    def _worker_process(model: str, prompt: str, summarize_reduce: bool, result_queue: multiprocessing.Queue):
+        """Worker function that runs in separate process."""
+        # Map stdout to null to get no output
+        import sys
+        import os
+        sys.stdout = open(os.devnull, 'w')
+        try:
+            # Create agent instance in worker process
+            worker_agent = ReviveAgent(model)
+            
+            # Execute the prompt
+            result = worker_agent.run_prompt(prompt, summarize_reduce, stream_callback=None)
+            
+            # Send success result back
+            result_queue.put({
+                'success': True,
+                'result': result,
+                'error': None,
+                'stats': {
+                    'tokens': worker_agent.total_tokens_used,
+                    'tool_calls': worker_agent.total_tool_calls_used
+                }
+            })
+            
+        except Exception as e:
+            # Send error result back
+            result_queue.put({
+                'success': False,
+                'result': None,
+                'error': str(e),
+                'stats': None
+            })
+    
+    # Create inter-process communication queue
+    result_queue = multiprocessing.Queue()
+    
+    # Create and start worker process
+    worker_process = multiprocessing.Process(
+        target=_worker_process,
+        args=(model, prompt, summarize_reduce, result_queue)
+    )
+    
+    worker_process.start()
+    
+    # Return handle immediately (NON-BLOCKING)
+    return ParallelPromptHandle(worker_process, result_queue, timeout)
 
 
 # Example usage and testing
