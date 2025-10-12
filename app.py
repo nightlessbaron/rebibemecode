@@ -154,6 +154,15 @@ def revive_code_task(job_id, git_repo_base, git_repo_old, workdir):
             job_status[job_id]["status"] = "completed"
             job_status[job_id]["current_step"] = "All tasks completed successfully"
             job_status[job_id]["work_directory"] = workdir
+
+            # Get and display total stats
+            total_stats = agent.get_total_stats()
+            job_status[job_id]["total_tool_calls"] = total_stats["tool_calls"]
+            job_status[job_id]["total_tokens"] = total_stats["tokens"]
+
+            final_stats_msg = f"\n\n{'='*80}\n📊 FINAL STATS FOR THIS JOB\n{'='*80}\nTotal Tool Calls: {total_stats['tool_calls']}\nTotal Tokens: ~{total_stats['tokens']}\n{'='*80}\n"
+            streaming_queues[job_id].put(final_stats_msg)
+
             streaming_queues[job_id].put(None)  # Signal end
 
             return {
@@ -167,6 +176,17 @@ def revive_code_task(job_id, git_repo_base, git_repo_old, workdir):
     except Exception as e:
         job_status[job_id]["status"] = "failed"
         job_status[job_id]["error"] = str(e)
+
+        # Get stats even on failure
+        if "agent" in locals():
+            total_stats = agent.get_total_stats()
+            job_status[job_id]["total_tool_calls"] = total_stats["tool_calls"]
+            job_status[job_id]["total_tokens"] = total_stats["tokens"]
+
+            if job_id in streaming_queues:
+                final_stats_msg = f"\n\n{'='*80}\n📊 STATS BEFORE FAILURE\n{'='*80}\nTotal Tool Calls: {total_stats['tool_calls']}\nTotal Tokens: ~{total_stats['tokens']}\n{'='*80}\n"
+                streaming_queues[job_id].put(final_stats_msg)
+
         if job_id in streaming_queues:
             streaming_queues[job_id].put(None)  # Signal end
         return {"success": False, "error": str(e)}

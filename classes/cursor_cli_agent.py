@@ -19,14 +19,18 @@ class CursorCLIAgent:
         Initialize the CursorCLIAgent with the specified model.
 
         Args:
-            model (str): The model to use for the Cursor CLI agent.
+            model (str): The model to use for the Cursor CLI agent. 
                         Defaults to 'sonnet-4.5'.
         """
         self.model = model
-        with weave.attributes({"model": model}):
-            self._verify_cursor_cli()
-
-    @weave.op()
+        self._verify_cursor_cli()
+        # Per-call stats
+        self.last_tool_call_count = 0
+        self.last_token_count = 0
+        # Cumulative stats across all calls
+        self.total_tool_call_count = 0
+        self.total_token_count = 0
+    
     def _verify_cursor_cli(self) -> None:
         """
         Verify that the Cursor CLI is installed and accessible.
@@ -164,164 +168,115 @@ class CursorCLIAgent:
                 "--stream-partial-output",
                 prompt.strip(),
             ]
-
-            # Log command in Weave attributes
-            with weave.attributes(
-                {
-                    "model": self.model,
-                    "timeout": timeout,
-                    "prompt_length": len(prompt),
-                    "command": " ".join(command),
-                    "has_stream_callback": stream_callback is not None,
-                }
-            ):
-                # Use Popen to capture streaming output
-                process = subprocess.Popen(
-                    command,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    bufsize=1,
-                )
-
-                full_response = ""
-
-                # Read output line by line
-                try:
-                    for line in process.stdout:
-                        if line.strip():
-                            try:
-                                # Parse the JSON line
-                                json_data = json.loads(line)
-                                json_messages_processed += 1
-
-                                # Extract text content from the message
-                                if json_data.get("type") == "assistant":
-                                    assistant_messages_count += 1
-                                    message = json_data.get("message", {})
-                                    content = message.get("content", [])
-                                    if content and len(content) > 0:
-                                        text = content[0].get("text", "")
-                                        if text:
-                                            # With --stream-partial-output, each message contains accumulated text
-                                            # We need to print only the new part (delta)
-                                            if (
-                                                text != full_response
-                                            ):  # Only process if text has changed
-                                                if text.startswith(full_response):
-                                                    # Text is an extension of what we have - print the delta
-                                                    delta = text[len(full_response) :]
-                                                    if delta:
-                                                        print(delta, end="", flush=True)
-                                                        if stream_callback:
-                                                            stream_callback(delta)
-                                                else:
-                                                    # Text doesn't start with our accumulated text
-                                                    # This might be the first chunk or a replacement
-                                                    # Print the entire text
-                                                    print(text, end="", flush=True)
+            
+            # Use Popen to capture streaming output
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+            
+            full_response = ""
+            tool_call_count = 0
+            token_count = 0
+            
+            # Read output line by line
+            try:
+                for line in process.stdout:
+                    if line.strip():
+                        try:
+                            # Parse the JSON line
+                            json_data = json.loads(line)
+                            
+                            # Extract text content from the message
+                            if json_data.get("type") == "assistant":
+                                message = json_data.get("message", {})
+                                content = message.get("content", [])
+                                if content and len(content) > 0:
+                                    text = content[0].get("text", "")
+                                    if text:
+                                        # With --stream-partial-output, each message contains accumulated text
+                                        # We need to print only the new part (delta)
+                                        if text != full_response:  # Only process if text has changed
+                                            if text.startswith(full_response):
+                                                # Text is an extension of what we have - print the delta
+                                                delta = text[len(full_response):]
+                                                if delta:
+                                                    print(delta, end='', flush=True)
                                                     if stream_callback:
-                                                        stream_callback(text)
-
-                                                full_response = text
-                                elif json_data.get("type") == "tool_call":
-                                    tool_call_messages_count += 1
-                                    # Display tool call messages in a readable format
-                                    subtype = json_data.get("subtype", "")
-                                    call_id = json_data.get("call_id", "")
-                                    session_id = json_data.get("session_id", "")
-                                    tool_call = json_data.get("tool_call", {})
-
-                                    # Log ALL tool call data to Weave
-                                    tool_call_data = {
-                                        "call_id": call_id,
-                                        "subtype": subtype,
-                                        "session_id": session_id,
-                                        "raw_tool_call": tool_call,
-                                        "full_json": json_data,
-                                    }
-
-                                    if subtype == "started":
-                                        # Extract tool information for display
-                                        tool_info = self._format_tool_call(tool_call)
-                                        if tool_info:
-                                            tool_call_data["tool_info"] = tool_info
-                                            # Log the complete tool call with all metadata
-                                            tool_calls_log.append(tool_call_data)
-                                            msg = f"\n🔧 {tool_info}\n"
-                                            print(msg, flush=True)
-                                            if stream_callback:
-                                                stream_callback(msg)
-                                    elif subtype == "completed":
-                                        # Log completed tool calls with results
-                                        tool_info = self._format_tool_call(tool_call)
-                                        if tool_info:
-                                            tool_call_data["tool_info"] = (
-                                                tool_info + " [COMPLETED]"
-                                            )
-                                        tool_calls_log.append(tool_call_data)
-
-                                        # Log completion with Weave attributes
-                                        with weave.attributes(
-                                            {
-                                                "tool_call_completed": True,
-                                                "call_id": call_id,
-                                                "has_result": "result"
-                                                in str(tool_call),
-                                            }
-                                        ):
-                                            pass
-
-                            except json.JSONDecodeError:
-                                # If it's not valid JSON, skip it
-                                continue
-
-                    # Wait for the process to complete
-                    process.wait(timeout=timeout)
-                    print()  # Add newline after streaming
-
-                    if process.returncode != 0:
-                        stderr = process.stderr.read()
-                        raise RuntimeError(f"Cursor CLI command failed: {stderr}")
-
-                    # Return comprehensive data logged by Weave
-                    result = {
-                        "response": full_response,
-                        "tool_calls": tool_calls_log,
-                        "command": " ".join(command),
-                        "model": self.model,
-                        "prompt_length": len(prompt),
-                        "response_length": len(full_response),
-                        "tool_call_count": len(tool_calls_log),
-                        "json_messages_processed": json_messages_processed,
-                        "assistant_messages_count": assistant_messages_count,
-                        "tool_call_messages_count": tool_call_messages_count,
-                    }
-
-                    # Log final statistics with Weave
-                    with weave.attributes(
-                        {
-                            "execution_complete": True,
-                            "response_length": len(full_response),
-                            "total_tool_calls": len(tool_calls_log),
-                            "total_json_messages": json_messages_processed,
-                            "total_assistant_messages": assistant_messages_count,
-                            "total_tool_call_messages": tool_call_messages_count,
-                        }
-                    ):
-                        return result
-
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    with weave.attributes(
-                        {
-                            "error_type": "timeout",
-                            "timeout_seconds": timeout,
-                            "json_messages_processed": json_messages_processed,
-                        }
-                    ):
-                        raise RuntimeError(f"Command timed out after {timeout} seconds")
-
+                                                        stream_callback(delta)
+                                            else:
+                                                # Text doesn't start with our accumulated text
+                                                # This might be the first chunk or a replacement
+                                                # Print the entire text
+                                                print(text, end='', flush=True)
+                                                if stream_callback:
+                                                    stream_callback(text)
+                                            
+                                            full_response = text
+                            elif json_data.get("type") == "tool_call":
+                                # Display tool call messages in a readable format
+                                subtype = json_data.get("subtype", "")
+                                tool_call = json_data.get("tool_call", {})
+                                
+                                if subtype == "started":
+                                    # Count the tool call
+                                    tool_call_count += 1
+                                    
+                                    # Extract tool information
+                                    tool_info = self._format_tool_call(tool_call)
+                                    if tool_info:
+                                        msg = f"\n🔧 {tool_info}\n"
+                                        print(msg, flush=True)
+                                        if stream_callback:
+                                            stream_callback(msg)
+                            
+                            # Track token usage if provided
+                            usage = json_data.get("usage", {})
+                            if "total_tokens" in usage:
+                                token_count = usage["total_tokens"]
+                            elif "completion_tokens" in usage:
+                                token_count += usage.get("completion_tokens", 0)
+                                            
+                        except json.JSONDecodeError:
+                            # If it's not valid JSON, skip it
+                            continue
+                
+                # Estimate tokens if not provided by the stream
+                if token_count == 0 and full_response:
+                    # Rough estimate: ~4 characters per token (common heuristic)
+                    token_count = len(full_response) // 4
+                
+                # Store stats in instance variables
+                self.last_tool_call_count = tool_call_count
+                self.last_token_count = token_count
+                
+                # Accumulate to total stats
+                self.total_tool_call_count += tool_call_count
+                self.total_token_count += token_count
+                
+                # Display stats for this call
+                stats_msg = f"\n📊 This call: {tool_call_count} tool calls | ~{token_count} tokens | Total so far: {self.total_tool_call_count} tool calls | ~{self.total_token_count} tokens\n"
+                print(stats_msg)
+                if stream_callback:
+                    stream_callback(stats_msg)
+                
+                # Wait for the process to complete
+                process.wait(timeout=timeout)
+                print()  # Add newline after streaming
+                
+                if process.returncode != 0:
+                    stderr = process.stderr.read()
+                    raise RuntimeError(f"Cursor CLI command failed: {stderr}")
+                
+                return full_response
+                
+            except subprocess.TimeoutExpired:
+                process.kill()
+                raise RuntimeError(f"Command timed out after {timeout} seconds")
+            
         except subprocess.TimeoutExpired as e:
             with weave.attributes(
                 {"error_type": "timeout_expired", "timeout_seconds": timeout}
@@ -391,8 +346,51 @@ class CursorCLIAgent:
         Returns:
             str: The current model name.
         """
-        with weave.attributes({"model": self.model}):
-            return self.model
+        return self.model
+    
+    def get_last_stats(self) -> Dict[str, int]:
+        """
+        Get statistics from the last run_prompt call.
+        
+        Returns:
+            dict: Dictionary containing 'tool_calls' and 'tokens' counts for the last call
+        """
+        return {
+            'tool_calls': self.last_tool_call_count,
+            'tokens': self.last_token_count
+        }
+    
+    def get_total_stats(self) -> Dict[str, int]:
+        """
+        Get cumulative statistics across all run_prompt calls.
+        
+        Returns:
+            dict: Dictionary containing total 'tool_calls' and 'tokens' counts
+        """
+        return {
+            'tool_calls': self.total_tool_call_count,
+            'tokens': self.total_token_count
+        }
+    
+    def reset_stats(self) -> None:
+        """
+        Reset all statistics counters (both per-call and cumulative).
+        """
+        self.last_tool_call_count = 0
+        self.last_token_count = 0
+        self.total_tool_call_count = 0
+        self.total_token_count = 0
+    
+    def print_total_stats(self) -> None:
+        """
+        Print a summary of total statistics.
+        """
+        print("\n" + "="*80)
+        print(f"📊 TOTAL STATS FOR THIS SESSION")
+        print("="*80)
+        print(f"Total Tool Calls: {self.total_tool_call_count}")
+        print(f"Total Tokens: ~{self.total_token_count}")
+        print("="*80 + "\n")
 
 
 # Example usage and testing
@@ -412,6 +410,11 @@ if __name__ == "__main__":
         response = agent.run_prompt(test_prompt)
         print("Response from Cursor CLI agent:")
         print(response)
+        print("-" * 80)
+        
+        # Get stats from the last run
+        stats = agent.get_last_stats()
+        print(f"\nLast run stats: {stats['tool_calls']} tool calls, {stats['tokens']} tokens")
         print("-" * 80)
 
         # Test with context

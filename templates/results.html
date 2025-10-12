@@ -322,6 +322,18 @@
             </div>
         </div>
 
+        <div class="repo-info" id="statsCard" style="display: none;">
+            <h3>📊 Statistics</h3>
+            <div class="repo-item">
+                <span class="repo-label">Total Tool Calls:</span>
+                <span class="repo-value" id="totalToolCalls">-</span>
+            </div>
+            <div class="repo-item">
+                <span class="repo-label">Total Tokens:</span>
+                <span class="repo-value" id="totalTokens">-</span>
+            </div>
+        </div>
+
         <div class="action-buttons">
             <a href="/" class="btn btn-secondary">← New Integration</a>
             <button class="btn btn-primary" id="refreshBtn" onclick="refreshStatus()">🔄 Refresh Status</button>
@@ -376,6 +388,23 @@
                 errorText.textContent = data.error;
             } else {
                 errorDetails.style.display = 'none';
+            }
+
+            // Update stats if available
+            if (data.total_tool_calls !== undefined || data.total_tokens !== undefined) {
+                const statsCard = document.getElementById('statsCard');
+                const totalToolCalls = document.getElementById('totalToolCalls');
+                const totalTokens = document.getElementById('totalTokens');
+                
+                if (data.total_tool_calls !== undefined) {
+                    totalToolCalls.textContent = data.total_tool_calls;
+                }
+                if (data.total_tokens !== undefined) {
+                    totalTokens.textContent = `~${data.total_tokens}`;
+                }
+                
+                // Show the stats card
+                statsCard.style.display = 'block';
             }
 
             // Stop auto-refresh if job is completed or failed
