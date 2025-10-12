@@ -1,4 +1,4 @@
-# 🔄 Rebibemecode - Code Revive
+# 🔄 Weave Hack: ReviveAgent
 
 **Automatically integrate older repositories with modern codebases using AI-powered analysis and migration.**
 
@@ -8,9 +8,12 @@ Rebibemecode is an intelligent Flask web application that leverages Claude Sonne
 
 ## 🎥 Demo
 
-Watch Rebibemecode in action:
+Watch ReviveAgent in action:
 
-https://github.com/user-attachments/assets/demo_webhack.mp4
+<video width="100%" controls>
+  <source src="assests/demo_webhack.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 > *Full integration workflow showing repository analysis, dependency resolution, and code migration*
 
@@ -39,7 +42,7 @@ https://github.com/user-attachments/assets/demo_webhack.mp4
 ### 📝 **Side-by-Side Git Diff**
 Beautiful GitHub-style diff viewer showing all changes made during integration:
 
-![Git Diff Viewer](../../git_diff.png)
+![Git Diff Viewer](assests/git_diff.png)
 
 *Real-time visualization of code changes in both R_base and R_old repositories*
 
@@ -220,18 +223,6 @@ Real-time streaming of agent actions with:
 - Work directory location
 - Execution timestamps
 - Final statistics
-
----
-
-## 🛠️ Technology Stack
-
-- **Backend**: Flask (Python)
-- **AI Model**: Claude Sonnet 4.5 (via Cursor CLI)
-- **Observability**: Weights & Biases Weave
-- **Streaming**: Server-Sent Events (SSE)
-- **Version Control**: Git
-- **Environment Management**: Conda
-- **Frontend**: Vanilla JavaScript, HTML5, CSS3
 
 ---
 
