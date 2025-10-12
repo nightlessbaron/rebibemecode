@@ -152,7 +152,7 @@ def summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT, stream_callback=No
     1. Read the repository at {workdir}/r_base at a high level.
     2. Write a file summarize_r_base.md in the folder {workdir} that summarizes what the repository is about.
     3. Make a script {workdir}/setup_r_base.sh to make a conda environment env_r_base and install the dependencies to run r_base
-    4. Run the {workdir}/setup_r_base.sh and make sure the conda environment is setup correctly. Delete the env env_r_base if it already exists.
+    4. Run the {workdir}/setup_r_base.sh and make sure the conda environment is setup correctly.
     5. Write a single file {workdir}/test_base.sh which tests if r_base is working properly.
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback)

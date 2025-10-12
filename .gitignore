@@ -1,3 +1,5 @@
 **__pycache__**
 work_dir/
 mistake_log**
+# Ignore incorrectly created files from shell commands
+=*
