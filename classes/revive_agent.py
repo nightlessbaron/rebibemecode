@@ -23,6 +23,7 @@ class ReviveAgent:
         self._verify_cli()
         self.total_tokens_used = 0
         self.total_tool_calls_used = 0
+        self.usage_stats_saved = []
 
     # In destructor, print the total stats
     def __del__(self):
@@ -30,6 +31,8 @@ class ReviveAgent:
         cprint("Agent stats before destruction", "green")
         cprint(f"\tTotal tokens used: {self.total_tokens_used}", "green")
         cprint(f"\tTotal tool calls used: {self.total_tool_calls_used}", "green")
+        for usage_stat in self.usage_stats_saved:
+            cprint(f"\t{usage_stat}", "green")
         cprint("-"*80, "green")
     
     def _verify_cli(self) -> None:
@@ -135,6 +138,7 @@ class ReviveAgent:
                 if summarize_reduce:
                     self.total_tokens_used += data["tokens"]
                     self.total_tool_calls_used += data["tool_calls"]
+                    self.usage_stats_saved.append(f"📊 Usage Stats: {data['tool_calls']} tool calls | ~{data['tokens']} tokens")
                     self.summarize_reduce(prompt, full_response, "./")
                 
                 return full_response
@@ -236,11 +240,16 @@ class ReviveAgent:
 
         1. If a file {global_dir}/mistake_log.md exists, read it and understad what mistakes are already logged
         2. Read the file {global_dir}/mistake_log_dump.txt, and try to understand what were the key mistakes that were made in that agentic transaction
-        3. Make sure to conslidate all mistakes in the {global_dir}/mistake_log.md file at the end, and only keep a max of 10 mistakes
-           The mistakes should only be focussed on code integration and depencency resolution only, keep only medium-high value mistakes
-           In case something took a long time to fix (>2 tries), make sure to record it as a mistake (so you can shortcut it later)
-           Try not to keep this file empty (0 mistakes), as we really want to self improve over iterations
-           Format should be: Mistake: <mistake> | How to fix: <how to fix>
+        3. In {global_dir}/mistake_log.md keep a log of at max 10 mistakes and 10 possible optimizations
+           If you have more data, make sure to consolidate and keep top 10 in each category
+           - Mistakes:
+                - The mistakes should only be focussed on code integration and depencency resolution only, keep only medium-high value mistakes
+                - Try not to keep this log empty (0 mistakes), as we really want to self improve over iterations
+           
+           - Possible Optimizations:
+                - At each invocation, atleast try to add 1 optimization / possible faster way of doing a subtask to the file
+                - In case something took a long time to fix (>=2 tries), make sure to record with possible optimization
+           
         """
         # Put the mistake lot in {global_dir}/mistake_log_dump.txt
         with open(f"{global_dir}/mistake_log_dump.txt", "w") as f:
