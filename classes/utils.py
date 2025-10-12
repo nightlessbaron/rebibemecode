@@ -151,8 +151,8 @@ def summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT, stream_callback=No
     command = f"""
     1. Read the repository at {workdir}/r_base at a high level.
     2. Write a file summarize_r_base.md in the folder {workdir} that summarizes what the repository is about.
-    3. Make a script {workdir}/setup_r_base.sh to make a conda environment env_r_base and install the dependencies to run r_base
-    4. Run the {workdir}/setup_r_base.sh and make sure the conda environment is setup correctly. Delete the env env_r_base if it already exists.
+    3. Make a script {workdir}/setup_r_base.sh to create a Python venv at {workdir}/env_r_base and install the dependencies to run r_base
+    4. Run the {workdir}/setup_r_base.sh and make sure the venv is setup correctly. Delete {workdir}/env_r_base if it already exists.
     5. Write a single file {workdir}/test_base.sh which tests if r_base is working properly.
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback)
@@ -166,6 +166,20 @@ def verify_base_repo_setup(agent, workdir, GLOBAL_CONTEXT):
         f"{workdir}/setup_r_base.sh",
         f"{workdir}/test_base.sh",
     ]
+
+    # In Daytona mode, check files on remote sandbox
+    if hasattr(agent, 'is_daytona_mode') and agent.is_daytona_mode():
+        cprint("Verifying files on Daytona container...", "cyan")
+        daytona = agent.daytona
+        for file in to_verify_files:
+            result = daytona.exec_command(f"test -f {file} && echo EXISTS || echo NOT_EXISTS")
+            if "EXISTS" not in result.get("stdout", ""):
+                cprint(f"✗ File not found on Daytona: {file}", "red")
+                return False
+        cprint("✓ All files verified on Daytona", "green")
+        return True
+
+    # Local mode: use os.path.exists
     for file in to_verify_files:
         if not os.path.exists(file):
             return False
@@ -177,7 +191,7 @@ def verify_if_env_is_setup_correctly(
     agent, workdir, GLOBAL_CONTEXT, stream_callback=None
 ):
     command = f"""
-    1. Activate env_r_base and make the script {workdir}/test_base.sh run correctly. If yes, append
+    1. Activate {workdir}/env_r_base and make the script {workdir}/test_base.sh run correctly. If yes, append
              'r_base: env setup and unit tests successful'
        else write
              'r_base: env setup and unit tests failed'
@@ -185,15 +199,22 @@ def verify_if_env_is_setup_correctly(
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + command, stream_callback=stream_callback, summarize_reduce=False)
 
-    # Read the file {workdir}/agent_summary.txt
+    # In Daytona mode, read file from Daytona container
+    if hasattr(agent, 'is_daytona_mode') and agent.is_daytona_mode():
+        daytona = agent.daytona
+        result = daytona.exec_command(f"cat {workdir}/agent_summary.txt")
+        content = result.get("stdout", "")
+        return "r_base: env setup and unit tests successful" in content
+
+    # Local mode: read file locally
     with open(f"{workdir}/agent_summary.txt", "r") as f:
         return "r_base: env setup and unit tests successful" in f.read()
 
 
 @weave.op()
 def setup_r_base_environment(agent, workdir, GLOBAL_CONTEXT, stream_callback=None):
-    # Make the conda environment and generate summary
-    cprint("Making the conda environment and setting up unit tests for r_base", "green")
+    # Make the venv and generate summary
+    cprint("Making the venv and setting up unit tests for r_base", "green")
     summarize_base_repo_setup(agent, workdir, GLOBAL_CONTEXT, stream_callback)
     summary_and_setup_complete = verify_base_repo_setup(agent, workdir, GLOBAL_CONTEXT)
     if not summary_and_setup_complete:
@@ -201,15 +222,15 @@ def setup_r_base_environment(agent, workdir, GLOBAL_CONTEXT, stream_callback=Non
         return False
     cprint("Summary and setup for r_base complete", "green")
 
-    # Verify the conda environment and unit tests
-    cprint("Verifying the conda environment and unit tests", "green")
+    # Verify the venv and unit tests
+    cprint("Verifying the venv and unit tests", "green")
     is_env_setup_correctly = verify_if_env_is_setup_correctly(
         agent, workdir, GLOBAL_CONTEXT, stream_callback
     )
     if not is_env_setup_correctly:
-        cprint("Conda environment and unit tests verification failed", "red")
+        cprint("Venv and unit tests verification failed", "red")
         return False
-    cprint("Conda environment and unit tests verified", "green")
+    cprint("Venv and unit tests verified", "green")
     return is_env_setup_correctly
 
 
@@ -225,13 +246,29 @@ def setup_r_old_environment(
     1. Clone the repo from {r_old}, and make sure you have the code at {workdir}/r_old
     2. Read code and dependencies from {workdir}/r_old and understand at a high level what it is
        Summarize it in {workdir}/summarize_r_old.md
-    3. Write a single file {workdir}/test_old.sh which tests if r_old is working properly. 
-       Just ensure decent functionality, no need to run it successfully. 
-       If you absolutely have to run it, make sure to use env_r_base.
+    3. Write a single file {workdir}/test_old.sh which tests if r_old is working properly.
+       Just ensure decent functionality, no need to run it successfully.
+       If you absolutely have to run it, make sure to use {workdir}/env_r_base.
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
 
-    # Assert if the the files have been created
+    # In Daytona mode, check files on remote container
+    if hasattr(agent, 'is_daytona_mode') and agent.is_daytona_mode():
+        cprint("Verifying r_old files on Daytona container...", "cyan")
+        daytona = agent.daytona
+
+        result1 = daytona.exec_command(f"test -f {workdir}/summarize_r_old.md && echo EXISTS || echo NOT_EXISTS")
+        if "EXISTS" not in result1.get("stdout", ""):
+            raise RuntimeError(f"Summarize_r_old.md not created on Daytona")
+
+        result2 = daytona.exec_command(f"test -f {workdir}/test_old.sh && echo EXISTS || echo NOT_EXISTS")
+        if "EXISTS" not in result2.get("stdout", ""):
+            raise RuntimeError(f"Test_old.sh not created on Daytona")
+
+        cprint("✓ R_old files verified on Daytona", "green")
+        return True
+
+    # Local mode: check files locally
     if not os.path.exists(f"{workdir}/summarize_r_old.md"):
         raise RuntimeError(f"Summarize_r_old.md not created")
     if not os.path.exists(f"{workdir}/test_old.sh"):
@@ -245,11 +282,11 @@ def resolve_dependencies(
     agent, r_base, r_old, workdir, GLOBAL_CONTEXT, stream_callback=None
 ):
     prompt = f"""
-    1. Make obvious changes to the {workdir}/r_old code so that it can run with the env_r_base environment
-    2. Activate env_r_base and try to run {workdir}/test_old.sh. If we get errors, iterate and try to fix the code in R_old.
-       Do not pip install everything from R_old, only add dependencies / make modifications in env_r_base if absolutely necessary.
-    3. If you modify env_r_base, make sure you run {workdir}/test_base.sh to verify test_base.sh doesn't break
-    4. Verify we can run {workdir}/test_old.sh with env_r_base. If yes, append
+    1. Make obvious changes to the {workdir}/r_old code so that it can run with the {workdir}/env_r_base venv
+    2. Activate {workdir}/env_r_base and try to run {workdir}/test_old.sh. If we get errors, iterate and try to fix the code in R_old.
+       Do not pip install everything from R_old, only add dependencies / make modifications in {workdir}/env_r_base if absolutely necessary.
+    3. If you modify {workdir}/env_r_base, make sure you run {workdir}/test_base.sh to verify test_base.sh doesn't break
+    4. Verify we can run {workdir}/test_old.sh with {workdir}/env_r_base. If yes, append
              'r_old: env setup and unit tests successful'
        else write
              'r_old: env setup and unit tests failed'
@@ -259,7 +296,14 @@ def resolve_dependencies(
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
 
-    # Read the file {workdir}/agent_summary.txt
+    # In Daytona mode, read file from Daytona container
+    if hasattr(agent, 'is_daytona_mode') and agent.is_daytona_mode():
+        daytona = agent.daytona
+        result = daytona.exec_command(f"cat {workdir}/agent_summary.txt")
+        content = result.get("stdout", "")
+        return "r_old: env setup and unit tests successful" in content
+
+    # Local mode: read file locally
     with open(f"{workdir}/agent_summary.txt", "r") as f:
         return "r_old: env setup and unit tests successful" in f.read()
 
@@ -270,7 +314,7 @@ def verify_complete_integration(
 ):
     prompt = f"""
     This is the final testing. Dont try a lot to fix things here, main purpose is testing (with minor fixes only)
-    1. Activate env_r_base
+    1. Activate {workdir}/env_r_base venv
     2. Run and verify test_old.sh works correctly, if yes append
              'r_old: env setup and unit tests successful'
        else write
@@ -284,7 +328,16 @@ def verify_complete_integration(
     """
     result = agent.run_prompt(GLOBAL_CONTEXT + prompt, stream_callback=stream_callback)
 
-    # Get 2 variables base_setup_correct and old_setup_correct
+    # In Daytona mode, read file from Daytona container
+    if hasattr(agent, 'is_daytona_mode') and agent.is_daytona_mode():
+        daytona = agent.daytona
+        result = daytona.exec_command(f"cat {workdir}/final_summary.txt")
+        content = result.get("stdout", "")
+        old_setup_correct = "r_old: env setup and unit tests successful" in content
+        base_setup_correct = "r_base: env setup and unit tests successful" in content
+        return base_setup_correct, old_setup_correct
+
+    # Local mode: read file locally
     with open(f"{workdir}/final_summary.txt", "r") as f:
         content = f.read()
         old_setup_correct = "r_old: env setup and unit tests successful" in content

@@ -10,9 +10,13 @@ from datetime import datetime
 import requests
 from termcolor import cprint
 import weave
+from dotenv import load_dotenv
 from classes.utils import clone_repos
 from classes.revive_agent import ReviveAgent
 import classes.utils as utils
+
+# Load environment variables
+load_dotenv()
 
 GLOBAL_CONTEXT = """
 Global context:
@@ -22,6 +26,14 @@ You are allowed to modify code in R_old to make it compatible with R_base, as lo
 The repository might have a mistake log at ./mistake_log.md. If it exists, read it and keep it in mind.
 Github repos R_base and R_old will be cloned for you, don't clone them again (if you dont find them you made a path error).
 Make sure to resolve all dependency issues, especially related to version mismatches (by upgrading package and code accordingly)
+
+IMPORTANT - Daytona MCP Tools Available:
+You have access to Daytona MCP tools for running commands on remote sandboxes. If you need to:
+- Create a remote development environment
+- Run commands in an isolated sandbox
+- Test code in a clean environment
+You can use the Daytona MCP tools that are available in your tool set.
+
 I will provide you with specifics in the prompt below.
 
 Specific work to do:
@@ -33,6 +45,7 @@ def revive_code(git_repo_base, git_repo_old, workdir, model):
     global GLOBAL_CONTEXT
     GLOBAL_CONTEXT = GLOBAL_CONTEXT + f"R_base: {git_repo_base}\nR_old: {git_repo_old}\n"
     """Revive code from the old repository to the new repository."""
+
     cprint("--------------------------------", "green")
     cprint("Revive code with the following parameters:", "green")
     cprint(f"Model: {model}", "green")
@@ -139,7 +152,7 @@ if __name__ == "__main__":
         default="auto",
         help="Model to use for the CLI agent (default: auto)"
     )
-    
+
     args = parser.parse_args()
 
     # Initialize Weave tracking

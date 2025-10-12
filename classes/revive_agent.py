@@ -220,7 +220,7 @@ class ReviveAgent:
     def get_total_stats(self) -> Dict[str, int]:
         """
         Get cumulative statistics across all run_prompt calls.
-        
+
         Returns:
             dict: Dictionary containing total 'tool_calls' and 'tokens' counts
         """
@@ -228,6 +228,10 @@ class ReviveAgent:
             'tool_calls': self.total_tool_call_count,
             'tokens': self.total_token_count
         }
+
+    def is_daytona_mode(self) -> bool:
+        """Check if running in Daytona mode."""
+        return False
 
     def summarize_reduce(self, prompt, response, global_dir):
         """

@@ -77,7 +77,7 @@ def revive_code_task(job_id, git_repo_base, git_repo_old, workdir):
             )
 
             # Initialize the agent
-            agent = ReviveAgent()
+            agent = ReviveAgent("sonnet-4.5")
 
             # Setup the r_base environment
             job_status[job_id]["current_step"] = "Setting up R_base environment"
