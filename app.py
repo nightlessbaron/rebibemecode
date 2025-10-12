@@ -19,7 +19,7 @@ import queue
 from datetime import datetime
 from termcolor import cprint
 import weave
-from classes.cursor_cli_agent import CursorCLIAgent
+from classes.revive_agent import ReviveAgent
 import classes.utils as utils
 
 app = Flask(__name__)
@@ -77,7 +77,7 @@ def revive_code_task(job_id, git_repo_base, git_repo_old, workdir):
             )
 
             # Initialize the agent
-            agent = CursorCLIAgent()
+            agent = ReviveAgent()
 
             # Setup the r_base environment
             job_status[job_id]["current_step"] = "Setting up R_base environment"

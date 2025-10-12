@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Simple test script to demonstrate streaming output from the Cursor CLI agent.
+Simple test script to demonstrate streaming output from the agent.
 """
 
-from classes.cursor_cli_agent import CursorCLIAgent
+from classes.revive_agent import ReviveAgent
 
 
 def test_streaming():
     """Test the streaming functionality with a simple prompt."""
-    print("Initializing Cursor CLI Agent...")
-    agent = CursorCLIAgent()
+    print("Initializing Revive Agent...")
+    agent = ReviveAgent()
 
     print("\n" + "=" * 80)
     print("Testing streaming output:")

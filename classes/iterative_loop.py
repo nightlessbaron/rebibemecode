@@ -2,7 +2,7 @@ import re
 import sys
 import weave
 
-from cursor_cli_agent import CursorCLIAgent
+from revive_agent import ReviveAgent
 
 
 class IterativeLoop:
@@ -11,7 +11,7 @@ class IterativeLoop:
         self, model: str = "sonnet-4.5", timeout: int = 120, max_iterations: int = 5
     ):
 
-        self.agent = CursorCLIAgent(model=model)
+        self.agent = ReviveAgent(model=model)
         self.timeout = timeout
         self.max_iterations = max_iterations
         self.iteration_count = 0
@@ -27,7 +27,7 @@ class IterativeLoop:
         print()
 
         try:
-            print(f"✓ CursorCLIAgent initialized with model: {self.agent.get_model()}")
+            print(f"✓ ReviveAgent initialized with model: {self.agent.get_model()}")
 
             # Construct the prompt to activate the conda environment and run the script
             prompt = f"""

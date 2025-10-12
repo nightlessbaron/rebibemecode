@@ -66,7 +66,7 @@ rebibemecode/
 │   ├── index.html         # Main form page
 │   └── results.html       # Status/results page
 ├── classes/
-│   ├── cursor_cli_agent.py
+│   ├── revive_agent.py
 │   └── utils.py
 └── work_dir/              # Generated during jobs
 ```
@@ -119,7 +119,7 @@ You can modify these settings in `app.py`:
 
 - **Port:** Change the port in the last line: `app.run(port=5000)`
 - **Debug Mode:** Set `debug=False` for production
-- **Timeout:** Adjust the `timeout` parameter in CursorCLIAgent calls
+- **Timeout:** Adjust the `timeout` parameter in ReviveAgent calls
 - **Auto-refresh Rate:** Modify the interval in `results.html` (default: 3 seconds)
 
 ## 📝 Notes

@@ -11,7 +11,7 @@ import requests
 from termcolor import cprint
 import weave
 from classes.utils import clone_repos
-from classes.cursor_cli_agent import CursorCLIAgent
+from classes.revive_agent import ReviveAgent
 import classes.utils as utils
 
 GLOBAL_CONTEXT = """
@@ -45,7 +45,7 @@ def revive_code(git_repo_base, git_repo_old, workdir):
         clone_repos(git_repo_base, git_repo_old, workdir)
 
     # Initialize the agent
-    agent = CursorCLIAgent()
+    agent = ReviveAgent()
 
     # Setup the r_base environment
     with weave.attributes({"step": "setup_r_base_environment", "workdir": workdir}):

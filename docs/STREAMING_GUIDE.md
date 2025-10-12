@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Cursor CLI Agent now supports **real-time streaming output** both in the terminal and in the web interface. This provides a much better user experience by showing the agent's response as it's being generated.
+The Revive Agent now supports **real-time streaming output** both in the terminal and in the web interface. This provides a much better user experience by showing the agent's response as it's being generated.
 
 ## Key Features
 
@@ -25,7 +25,7 @@ The Cursor CLI Agent now supports **real-time streaming output** both in the ter
 
 ### Terminal Streaming
 
-The `CursorCLIAgent.run_prompt()` method now:
+The `ReviveAgent.run_prompt()` method now:
 
 1. Uses `subprocess.Popen` instead of `subprocess.run` to capture streaming output
 2. Reads output line by line in real-time
@@ -35,9 +35,9 @@ The `CursorCLIAgent.run_prompt()` method now:
 
 **Example:**
 ```python
-from classes.cursor_cli_agent import CursorCLIAgent
+from classes.revive_agent import ReviveAgent
 
-agent = CursorCLIAgent()
+agent = ReviveAgent()
 response = agent.run_prompt("Write a Python function to calculate factorial")
 
 # Output will stream to console in real-time as it's generated
@@ -64,7 +64,7 @@ The web app now includes:
 
 ## API Changes
 
-### `CursorCLIAgent.run_prompt()`
+### `ReviveAgent.run_prompt()`
 
 **New signature:**
 ```python
@@ -89,7 +89,7 @@ def run_prompt(
 def my_callback(text):
     print(f"[CALLBACK] {text}", end='', flush=True)
 
-agent = CursorCLIAgent()
+agent = ReviveAgent()
 response = agent.run_prompt(
     "Explain Python generators", 
     stream_callback=my_callback

@@ -328,7 +328,7 @@ class ReviveAgent:
     @weave.op()
     def set_model(self, model: str) -> None:
         """
-        Change the model used by the ReviceCLI agent.
+        Change the model used by the agent.
 
         Args:
             model (str): The new model to use.
