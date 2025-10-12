@@ -256,15 +256,20 @@ class CursorCLIAgent:
                                         # Log completed tool calls with results
                                         tool_info = self._format_tool_call(tool_call)
                                         if tool_info:
-                                            tool_call_data["tool_info"] = tool_info + " [COMPLETED]"
+                                            tool_call_data["tool_info"] = (
+                                                tool_info + " [COMPLETED]"
+                                            )
                                         tool_calls_log.append(tool_call_data)
 
                                         # Log completion with Weave attributes
-                                        with weave.attributes({
-                                            "tool_call_completed": True,
-                                            "call_id": call_id,
-                                            "has_result": "result" in str(tool_call),
-                                        }):
+                                        with weave.attributes(
+                                            {
+                                                "tool_call_completed": True,
+                                                "call_id": call_id,
+                                                "has_result": "result"
+                                                in str(tool_call),
+                                            }
+                                        ):
                                             pass
 
                             except json.JSONDecodeError:
