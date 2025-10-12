@@ -9,134 +9,69 @@ import subprocess
 from datetime import datetime
 import requests
 from termcolor import cprint
+from classes.utils import clone_repos
+from classes.cursor_cli_agent import CursorCLIAgent
+import classes.utils as utils
 
-def verify_if_url_is_open_github(github_url):
-    """
-    Check if a GitHub repository URL has valid format and is accessible.
-    Uses a simple approach that doesn't hit GitHub API rate limits.
+GLOBAL_CONTEXT = """
+Global context:
+You are an integration agent, whose job is to make older repositories compatible latest ones. You will be given 2 repositories, R_base and R_old, and you need to integrate the R_old code into R_base. These are the high-level objectives you should operate on
+You are not allowed to make a lot of changes to the code and environment in R_base. Only make absolutely necessary changes without which R_old can never be integrated with R_base (for example, if E_base doesn't have scipy, and R_old uses it, you are allowed to install scipy in R_base)
+You are allowed to modify code in R_old to make it compatible with R_base, as long as it doesn't change any core features/functionality of R_old.
+I will provide you with specifics in the next prompt
 
-    Args:
-        github_url (str): e.g. "https://github.com/user/repo"
+Specific work to do:
+"""
 
-    Returns:
-        bool: True if URL format is valid and accessible, False otherwise
-    """
-    # Basic URL format validation
-    if not github_url.startswith("https://github.com/"):
-        print(f"Not a valid GitHub URL: {github_url}")
-        return False
-
-    # Extract "user/repo" parts
-    parts = github_url.rstrip("/").split("/")
-    if len(parts) < 5:
-        print(f"Invalid GitHub repository URL format: {github_url}")
-        return False
-
-    user, repo = parts[-2], parts[-1]
-    
-    # Basic validation - check if user and repo names are reasonable
-    if not user or not repo or len(user) == 0 or len(repo) == 0:
-        print(f"Invalid user or repository name in URL: {github_url}")
-        return False
-    
-    # Try a simple HEAD request to the repository page (not API)
-    try:
-        response = requests.head(github_url, timeout=10, allow_redirects=True)
-        if response.status_code == 200:
-            return True
-        else:
-            print(f"Repository not accessible: {github_url} (Status: {response.status_code})")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"Network error checking repository: {github_url} - {str(e)}")
-        # For network errors, we'll assume the URL format is valid and continue
-        # This prevents network issues from blocking the entire process
-        return True
-
-
-def robust_git_clone(repo_url, target_dir, timeout=30):
-    """
-    Clone a git repository with timeout and error handling.
-    Tries 'main' branch first, then falls back to 'master' if main doesn't exist.
-    
-    Args:
-        repo_url (str): The repository URL to clone
-        target_dir (str): The target directory for cloning
-        timeout (int): Timeout in seconds (default: 30)
-    
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    try:
-        print(f"Cloning {repo_url} to {target_dir} (timeout: {timeout}s)...")
-        
-        # Try cloning 'main' branch first
-        print("Attempting to clone 'main' branch...")
-        result = subprocess.run(
-            ["git", "clone", "--branch", "main", "--depth", "1", repo_url, target_dir],
-            timeout=timeout,
-            text=True,
-            check=False  # Don't raise exception on non-zero exit code
-        )
-        
-        if result.returncode == 0:
-            print(f"✓ Successfully cloned {repo_url} (main branch)")
-            return True
-        else:
-            print(f"Failed to clone 'main' branch (exit code: {result.returncode})")
-            print("Attempting to clone 'master' branch...")
-            
-            # Try cloning 'master' branch as fallback
-            result = subprocess.run(
-                ["git", "clone", "--branch", "master", "--depth", "1", repo_url, target_dir],
-                timeout=timeout,
-                text=True,
-                check=False  # Don't raise exception on non-zero exit code
-            )
-            
-            if result.returncode == 0:
-                print(f"✓ Successfully cloned {repo_url} (master branch)")
-                return True
-            else:
-                print(f"✗ Failed to clone {repo_url} with both 'main' and 'master' branches (exit code: {result.returncode})")
-                return False
-            
-    except subprocess.TimeoutExpired:
-        print(f"✗ Clone operation timed out after {timeout} seconds: {repo_url}")
-        return False
-    except FileNotFoundError:
-        print("✗ Git command not found. Please ensure git is installed.")
-        return False
-    except Exception as e:
-        print(f"✗ Unexpected error cloning {repo_url}: {str(e)}")
-        return False
-
-
-def revive_code(r_base, r_old, workdir):
+def revive_code(git_repo_base, git_repo_old, workdir):
+    global GLOBAL_CONTEXT
     """Revive code from the old repository to the new repository."""
     cprint("--------------------------------", "green")
     cprint("Revive code with the following parameters:", "green")
-    cprint(f"R_base: {r_base}", "green")
-    cprint(f"R_old: {r_old}", "green")
+    cprint(f"git_repo_base: {git_repo_base}", "green")
+    cprint(f"R_old: {git_repo_old}", "green")
     cprint(f"Work directory: {workdir}", "green")
     cprint("--------------------------------", "green")
-    
-    # Verification
-    if not verify_if_url_is_open_github(r_base):
-        raise ValueError(f"R_base is not a valid GitHub repository: {r_base}")
-    if not verify_if_url_is_open_github(r_old):
-        raise ValueError(f"R_old is not a valid GitHub repository: {r_old}")
 
-    # Clone github repository to correct folders with robust handling
-    success_base = robust_git_clone(r_base, f"{workdir}/r_base", timeout=120)
-    success_old = robust_git_clone(r_old, f"{workdir}/r_old", timeout=120)
+    # clone_repos(git_repo_base, r_old, workdir)
+    GLOBAL_CONTEXT = GLOBAL_CONTEXT + f"R_base: {git_repo_base}\nR_old: {git_repo_old}"
+
+    # Initialize the agent
+    agent = CursorCLIAgent()
+
+    # Setup the r_base environment
+    is_env_setup_correctly = utils.setup_r_base_environment(agent, workdir, GLOBAL_CONTEXT)
+    if not is_env_setup_correctly:
+        cprint("R_base environment setup failed", "red")
+        return
+    cprint("R_base environment setup complete", "green")
     
-    if not success_base:
-        raise RuntimeError(f"Failed to clone base repository: {r_base}")
-    if not success_old:
-        raise RuntimeError(f"Failed to clone old repository: {r_old}")
+    # Setup the r_old environment
+    is_env_setup_correctly = utils.setup_r_old_environment(agent, git_repo_old, workdir, GLOBAL_CONTEXT)
+    if not is_env_setup_correctly:
+        cprint("R_old environment setup failed", "red")
+        return
+    cprint("R_old environment setup complete", "green")
     
-    print("✓ All repositories cloned successfully!")
+    # Resolve dependencies
+    is_dependencies_resolved = utils.resolve_dependencies(agent, git_repo_base, git_repo_old, workdir, GLOBAL_CONTEXT)
+    if not is_dependencies_resolved:
+        cprint("Dependencies resolution failed", "red")
+        return
+    cprint("Dependencies resolution complete", "green")
+
+    # Final verification
+    base_setup_correct, old_setup_correct = utils.verify_complete_integration(agent, git_repo_base, git_repo_old, workdir, GLOBAL_CONTEXT)
+    if not base_setup_correct:
+        cprint("Base setup verification failed", "red")
+        return
+    cprint("Base setup verification complete", "green")
+    if not old_setup_correct:
+        cprint("Old setup verification failed", "red")
+        return
+    cprint("Old setup verification complete", "green")
+    cprint("All setup verification complete", "green")
+    
 
 if __name__ == "__main__":
     """Main function with argument parsing."""
@@ -168,7 +103,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Add time to the work directory
-    args.workdir = f"{args.workdir}/invocation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    # args.workdir = f"{args.workdir}/invocation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    args.workdir = f"{args.workdir}/invocation_20251011_204741"
     
     # Create the work directory if it doesn't exist
     os.makedirs(args.workdir, exist_ok=True)

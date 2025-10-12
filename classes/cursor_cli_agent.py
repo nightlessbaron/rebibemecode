@@ -43,7 +43,7 @@ class CursorCLIAgent:
                 "curl https://cursor.com/install -fsS | bash"
             ) from e
     
-    def run_prompt(self, prompt: str, timeout: int = 60) -> str:
+    def run_prompt(self, prompt: str, timeout: int = 600) -> str:
         """
         Run a prompt through the Cursor CLI agent and return the response.
         
@@ -60,27 +60,31 @@ class CursorCLIAgent:
         """
         if not prompt or not prompt.strip():
             raise ValueError("Prompt cannot be empty or None")
+
+        print("--------------------------------")
+        print("Running with model: ", self.model, "and prompt: ")
+        print(prompt)
+        print("--------------------------------")
         
         try:
             # Construct the command to run the Cursor CLI with the specified model and prompt
             command = [
                 'cursor-agent',
+                'chat',
                 '--print',
                 '--model', self.model,
-                '--output-format', 'text',
+                '--output-format', 'stream-json',
+                '--stream-partial-output',
                 prompt.strip()
             ]
             
             # Execute the command and capture the output
             result = subprocess.run(
                 command,
-                capture_output=True,
-                text=True,
                 check=True,
                 timeout=timeout
             )
-            
-            return result.stdout.strip()
+            return result
             
         except subprocess.TimeoutExpired as e:
             raise RuntimeError(f"Command timed out after {timeout} seconds") from e

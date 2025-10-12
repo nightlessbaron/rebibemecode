@@ -1,0 +1,40 @@
+{
+    "permissions": {
+      "allow": [
+        "Shell(git)",
+        "Shell(bash)",
+        "Shell(shell)",
+        "Shell(sh)",
+        "Shell(mkdir)",
+        "Shell(cd)",
+        "Shell(ls)",
+        "Shell(rm)",
+        "Shell(cp)",
+        "Shell(mv)",
+        "Shell(python)",
+        "Shell(python3)",
+        "Shell(pip)",
+        "Shell(pip3)",
+        "Shell(conda)",
+        "Shell(mamba)",
+        "Shell(source)",
+        "Shell(curl)",
+        "Shell(wget)",
+        "Shell(pytest)",
+        "Shell(unittest)",
+        "Shell(which)",
+        "Shell(env)",
+        "Shell(echo)",
+        "Shell(cat)",
+        "Shell(chmod)"
+      ],
+      "deny": [
+        "Shell(sudo)",
+        "Shell(apt)",
+        "Shell(yum)",
+        "Shell(dnf)",
+        "Shell(docker)",
+        "ssh"
+      ]
+    }
+  }
