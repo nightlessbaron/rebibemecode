@@ -5,60 +5,63 @@ python3 classes/simple_cursor_agent_test.py
 
 from cursor_cli_agent import CursorCLIAgent
 
+
 def test_summarize_project():
     """Simple test to summarize this project using CursorCLIAgent."""
-    
+
     print("Testing CursorCLIAgent with 'summarize this project' command...")
     print("-" * 60)
-    
+
     try:
         # Initialize the agent
         agent = CursorCLIAgent()
         print(f"✓ CursorCLIAgent initialized with model: {agent.get_model()}")
-        
+
         # Simple test prompt
         prompt = "Summarize this project"
         print(f"Sending prompt: '{prompt}'")
         print("-" * 60)
-        
+
         # Run the prompt
         response = agent.run_prompt(prompt)
-        
+
         print("Response:")
         print(response)
         print("-" * 60)
         print("✓ Test completed successfully!")
-        
+
     except Exception as e:
         print(f"✗ Test failed: {e}")
         return False
-    
+
     return True
+
 
 def test_shell_execution():
     """Simple test to execute a shell script."""
     print("Testing CursorCLIAgent with 'execute a shell script' command...")
     print("-" * 60)
-    
+
     try:
         agent = CursorCLIAgent()
         print(f"✓ CursorCLIAgent initialized with model: {agent.get_model()}")
-        
+
         prompt = "Write a simple python3 script to print 'Hello, World!'. Run it and verify it prints 'Hello, World!'."
         print(f"Sending prompt: '{prompt}'")
         print("-" * 60)
-        
+
         response = agent.run_prompt(prompt)
         print("Response:")
         print(response)
         print("-" * 60)
         print("✓ Test completed successfully!")
-        
+
     except Exception as e:
         print(f"✗ Test failed: {e}")
         return False
-    
+
     return True
+
 
 if __name__ == "__main__":
     success = test_summarize_project()
