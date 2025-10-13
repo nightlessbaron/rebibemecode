@@ -7,21 +7,22 @@
 </p>
 
 ---
+**Builders:** Vibhakar Mohta, Varad Pimpalkhute and Shaurya Rohatgi
 
 **Automatically integrate older repositories with modern codebases using AI-powered analysis and migration.**
 
-Rebibemecode is an intelligent Flask web application that leverages Claude Sonnet 4.5 to automatically analyze, adapt, and integrate legacy code repositories with their modern counterparts. Say goodbye to manual dependency resolution and compatibility issues!
+ReviveAgent is an intelligent Flask web application that leverages Claude Sonnet 4.5 to automatically analyze, adapt, and integrate legacy code repositories with their modern counterparts. Say goodbye to manual dependency resolution and compatibility issues!
+
+📺 [**Full Presentation**](https://www.youtube.com/watch?v=GzqFLpUFegk) | 📑 [**Slides**](https://docs.google.com/presentation/d/1wTN5MeRkyqQS-VdWmr3JIrjLmjMZJIaJougbkHIujhg/edit?usp=sharing)
 
 ---
 
-## 🎥 Demo
+## 🚀 ReviveAgent Demo
 
-Watch ReviveAgent in action:
+🎬 **Watch in Action:**  
+[![ReviveAgent Demo](https://img.youtube.com/vi/rmgXhW6sZ6o/0.jpg)](https://www.youtube.com/watch?v=rmgXhW6sZ6o)
 
-[![Watch the video](https://img.youtube.com/vi/rmgXhW6sZ6o/0.jpg)](https://www.youtube.com/watch?v=rmgXhW6sZ6o)
-
-
-> *Full integration workflow showing repository analysis, dependency resolution, and code migration*
+🧠 **Overview:** Repository analysis · Dependency resolution · Code migration
 
 ---
 
