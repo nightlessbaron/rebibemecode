@@ -34,12 +34,6 @@ ReviveAgent is an intelligent Flask web application that leverages Claude Sonnet
 - Automatic compatibility fixes and version upgrades
 - Context-aware code modifications
 
-### 🌐 **Beautiful Web Interface**
-- Modern, gradient-based UI design
-- Real-time streaming output with Server-Sent Events (SSE)
-- Live progress tracking and status updates
-- Interactive job monitoring dashboard
-
 ### 📊 **Comprehensive Observability**
 - **Weave Integration**: Full tracing and metrics via W&B Weave
 - **Live Agent Output**: Real-time streaming of agent actions
@@ -47,17 +41,10 @@ ReviveAgent is an intelligent Flask web application that leverages Claude Sonnet
 - **Execution Statistics**: Token usage and tool call tracking
 
 ### 📝 **Side-by-Side Git Diff**
-Beautiful GitHub-style diff viewer showing all changes made during integration:
 
 ![Git Diff Viewer](assests/git_diff.png)
 
 *Real-time visualization of code changes in both R_base and R_old repositories*
-
-### ⚡ **Smart Automation**
-- Automatic conda environment setup
-- Intelligent test script generation
-- Dependency conflict resolution
-- Version compatibility handling
 
 ---
 
@@ -173,66 +160,6 @@ result = utils.setup_r_base_environment(
 )
 ```
 
----
-
-## 🎯 Integration Workflow
-
-1. **📦 Repository Cloning**
-   - Clones both R_base and R_old repositories
-   - Validates GitHub URLs
-   - Handles both `main` and `master` branches
-
-2. **🔧 R_base Environment Setup**
-   - Analyzes repository structure
-   - Creates conda environment (`env_r_base`)
-   - Generates `setup_r_base.sh` script
-   - Creates `test_base.sh` for validation
-
-3. **📂 R_old Analysis**
-   - Examines legacy code structure
-   - Identifies dependencies
-   - Creates `test_old.sh` for testing
-
-4. **⚙️ Dependency Resolution**
-   - Compares version requirements
-   - Modifies R_old code for compatibility
-   - Updates R_base environment only when necessary
-   - Resolves import and API changes
-
-5. **✅ Final Verification**
-   - Runs both test suites
-   - Validates integration success
-   - Generates summary reports
-
----
-
-## 📊 Dashboard Features
-
-### Live Agent Output
-Real-time streaming of agent actions with:
-- 🔧 Tool call indicators (file operations, commands)
-- 📊 Token usage and statistics
-- ⏱️ Execution timing
-
-### Weave Trace Visualization
-- **Status Overview**: Job status, duration, total calls
-- **Call Tree**: Hierarchical view of function executions
-- **Direct Links**: Jump to W&B Weave dashboard
-
-### Git Diff Viewer
-- **Side-by-side comparison** of changes
-- **Syntax highlighting** (added/removed/context lines)
-- **File-by-file breakdown**
-- **Auto-refresh** during execution
-
-### Repository Information
-- Source URLs for both repositories
-- Work directory location
-- Execution timestamps
-- Final statistics
-
----
-
 ## 📁 Project Structure
 
 ```
@@ -290,39 +217,10 @@ IMPORTANT COMMAND EXECUTION RULES:
 
 ---
 
-## 🔍 Debugging
-
-### View Weave Traces
-```
-https://wandb.ai/mbzuai-llm/rebibemecode-web-app/weave
-```
-
-### Check Job Status
-```
-GET /status/<job_id>
-```
-
-### Debug Weave Integration
-```
-GET /debug-weave/<job_id>
-```
-
-### View Git Diffs
-```
-GET /git-diff/<job_id>
-```
-
----
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+Contributions are welcome! Fork the repository, commit your changes (e.g., adding DSPY GePa optimization feature), and open a PR!
 
 ---
 
@@ -331,13 +229,6 @@ Contributions are welcome! Here's how you can help:
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
-
-## 📧 Contact
-
-For questions, issues, or suggestions:
-- Open an issue on GitHub
-- Check the documentation in `/docs`
-- View our [Weave dashboard](https://wandb.ai/mbzuai-llm/rebibemecode-web-app/weave)
 
 
 *Rebibemecode - Making legacy code integration effortless*
